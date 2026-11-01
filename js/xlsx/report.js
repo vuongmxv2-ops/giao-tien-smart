@@ -50,6 +50,11 @@ export function groupEvidence(items, size = 4) {
  */
 export async function buildWeekWorkbook({ data, templateBytes, withImages, loadImages, onLog = () => {} }) {
   const tpl = await readTemplate(templateBytes);
+  // Các lớp cùng nhóm thi đua đứng liền nhau (giữ thứ tự gốc) để công thức Xếp thứ tính trong từng nhóm
+  const gOrder = [...new Set(data.classes.map(c => c.comp_group || ''))];
+  data = { ...data, classes: gOrder.flatMap(g => data.classes.filter(c => (c.comp_group || '') === g)) };
+  const gRange = {};
+  data.classes.forEach((c, i) => { const g = c.comp_group || ''; if (!gRange[g]) gRange[g] = [i, i]; else gRange[g][1] = i; });
   const t = parseThresholds(data.thresholds);
   const days = data.days.slice();
   const warnings = [];
@@ -127,7 +132,7 @@ export async function buildWeekWorkbook({ data, templateBytes, withImages, loadI
     }
     const total = r2(Number(data.starting_points) + sum);
     if (Math.abs(total - Number(c.final_points)) > 0.001) throw new Error(`Sai lệch điểm lớp ${c.name}: bảng Excel ${total} ≠ hệ thống ${c.final_points}. Dừng xuất.`);
-    rows.push({ block, values, cached: { total, grade: gradeOf(total, t), rank: c.rank } });
+    rows.push({ block, values, rankRange: gRange[c.comp_group || ''], cached: { total, grade: gradeOf(total, t), rank: c.rank } });
   }
   if (withImages && placedImages !== allIds.length) throw new Error(`Số ảnh đưa vào Note (${placedImages}) khác số ảnh đã duyệt (${allIds.length}).`);
 

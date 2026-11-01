@@ -7,7 +7,8 @@ export async function render(el, app, params) {
   const b = app.boot;
   const fWeek = h('select', {}, options(b.weeks, { value: 'week_id', label: w => app.weekLabel(w) + (w.status === 'LOCKED' ? ' 🔒 (chính thức)' : ' (tạm tính)'), selected: params.week_id || b.current_week?.week_id }));
   const fCampus = h('select', {}, options(b.campuses, { value: 'campus_id', label: 'name', empty: 'Toàn trường', selected: params.campus_id }));
-  el.append(h('div', { class: 'filters' }, field('Năm học', h('input', { type: 'text', value: b.year?.name || '', disabled: true })), field('Tuần', fWeek), field('Cơ sở', fCampus)));
+  const fGroup = h('select', {}, options(app.groups(), { empty: 'Tất cả nhóm (mỗi nhóm xếp thứ riêng)', selected: params.comp_group }));
+  el.append(h('div', { class: 'filters' }, field('Nhóm thi đua', fGroup), field('Năm học', h('input', { type: 'text', value: b.year?.name || '', disabled: true })), field('Tuần', fWeek), field('Cơ sở', fCampus)));
   const logBox = h('div', { class: 'small', style: 'max-height:220px;overflow:auto' });
   const prog = h('div', { class: 'progress', hidden: true }, h('i'));
   const result = h('div');
@@ -75,14 +76,14 @@ export async function render(el, app, params) {
     const withImages = kind === 'COMMENT_IMAGES';
     try {
       log('Lấy dữ liệu đã duyệt của tuần…');
-      const data = await app.call('export.weekData', { week_id: fWeek.value, campus_id: fCampus.value });
+      const data = await app.call('export.weekData', { week_id: fWeek.value, campus_id: fCampus.value, comp_group: fGroup.value });
       log(`${data.classes.length} lớp, ${data.items.length} bản ghi đã duyệt, ${data.items.reduce((s, i) => s + i.evidence.length, 0)} ảnh. ${data.locked ? 'Tuần đã khóa (phiên bản ' + data.version + ').' : 'Tuần CHƯA khóa – điểm tạm tính.'}`);
       setProg(0.1);
       const tplBytes = await getTemplate();
       const { blob, summary } = await buildWeekWorkbook({ data, templateBytes: tplBytes, withImages, loadImages, onLog: log });
       setProg(0.85);
       summary.warnings.forEach(w => log('⚠ ' + w));
-      const scope = fCampus.value ? (b.campuses.find(c => c.campus_id === fCampus.value)?.code || 'CS') : 'TOAN_TRUONG';
+      const scope = (fCampus.value ? (b.campuses.find(c => c.campus_id === fCampus.value)?.code || 'CS') : 'TOAN_TRUONG') + (fGroup.value ? '_' + fGroup.value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/\W+/g, '_').toUpperCase() : '');
       const filename = `BANG_THI_DUA_T${data.week.week_no}_${scope}${withImages ? '_KEM_ANH' : ''}${data.locked ? '' : '_TAM_TINH'}.xlsx`;
       download(blob, filename);
       log(`Đã tạo ${filename} (${(blob.size / 1048576).toFixed(2)} MB). Đang lưu vào Google Drive…`);
@@ -136,8 +137,8 @@ export async function render(el, app, params) {
 
   async function rankingCsv() {
     try {
-      const d = await app.call('rank.get', { period: 'week', week_id: fWeek.value, campus_id: fCampus.value });
-      const rows = [['Hạng', 'Lớp', 'Điểm TB', 'Tổng', 'Hạng tuần trước', 'Tăng/giảm', 'Lượt vi phạm']].concat(d.rows.map(r => [r.rank, r.class_name, r.average, r.total, r.prev_rank, r.rank_change, r.violation_count]));
+      const d = await app.call('rank.get', { period: 'week', week_id: fWeek.value, campus_id: fCampus.value, comp_group: fGroup.value });
+      const rows = [['Hạng', 'Lớp', 'Nhóm', 'Điểm TB', 'Tổng', 'Hạng tuần trước', 'Tăng/giảm', 'Lượt vi phạm']].concat(d.rows.map(r => [r.rank, r.class_name, r.comp_group || '', r.average, r.total, r.prev_rank, r.rank_change, r.violation_count]));
       download(new Blob([csv(rows)], { type: 'text/csv;charset=utf-8' }), `XEP_HANG_${fWeek.value}.csv`);
     } catch (e) { toast(e.message, 'err'); }
   }

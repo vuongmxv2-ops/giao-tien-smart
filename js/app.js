@@ -30,7 +30,9 @@ export const app = {
   campusName(id) { const c = this.boot.campuses.find(x => x.campus_id === id); return c ? c.name : ''; },
   weekLabel(w) { return w ? `Tuần ${w.week_no} (${w.start_date.substr(8, 2)}/${w.start_date.substr(5, 2)} – ${w.end_date.substr(8, 2)}/${w.end_date.substr(5, 2)})` : ''; },
   async reloadBoot() { this.boot = await call('app.bootstrap'); this.user = this.boot.user; return this.boot; },
-  visibleTabs() { return TABS.filter(t => this.can(t.perms)); }
+  visibleTabs() { return TABS.filter(t => this.can(t.perms)); },
+  /** Các nhóm thi đua (ví dụ: Lớp chọn, Đại trà) theo thứ tự xuất hiện trong danh sách lớp. */
+  groups() { return [...new Set((this.boot?.classes || []).map(c => c.comp_group).filter(Boolean))]; }
 };
 window.GTS_APP = app;
 

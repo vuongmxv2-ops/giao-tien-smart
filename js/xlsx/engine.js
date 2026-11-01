@@ -165,7 +165,7 @@ export async function buildXlsx(tpl, model) {
       if (c.role === 'total') cells.push(cell(ref, s, { f: `${model.startingPoints}+SUM(${firstDayCol}${R}:${lastDayCol}${R})`, v: r.cached.total }, 'f'));
       else if (c.role === 'sum') cells.push(cell(ref, s, { f: `${cTotal}${R}`, v: r.cached.total }, 'f'));
       else if (c.role === 'grade') cells.push(cell(ref, s, { f: gradeFormula(cSum + R), v: r.cached.grade, str: true }, 'f'));
-      else if (c.role === 'rank') cells.push(model.rankByFormula ? cell(ref, s, { f: `RANK(${cSum}${R},$${cSum}$${firstData}:$${cSum}$${lastData},0)`, v: r.cached.rank }, 'f') : cell(ref, s, r.cached.rank));
+      else if (c.role === 'rank') { const rr = r.rankRange || [0, nRows - 1]; cells.push(model.rankByFormula ? cell(ref, s, { f: `RANK(${cSum}${R},$${cSum}$${firstData + rr[0]}:$${cSum}$${firstData + rr[1]},0)`, v: r.cached.rank }, 'f') : cell(ref, s, r.cached.rank)); }
       else cells.push(cell(ref, s, r.values[j]));
     });
     row(R, heights.data, cells);

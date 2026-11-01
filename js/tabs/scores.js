@@ -6,16 +6,17 @@ export async function render(el, app, params) {
   const fWeek = h('select', {}, options(b.weeks, { value: 'week_id', label: w => app.weekLabel(w) + (w.status === 'LOCKED' ? ' 🔒' : ''), selected: params.week_id || b.current_week?.week_id }));
   const fCampus = h('select', {}, options(b.campuses, { value: 'campus_id', label: 'name', empty: 'Toàn trường' }));
   const fGrade = h('select', {}, options([6, 7, 8, 9].map(g => ({ value: g, label: 'Khối ' + g })), { empty: 'Tất cả khối' }));
-  el.append(h('div', { class: 'filters' }, field('Tuần', fWeek), field('Cơ sở', fCampus), field('Khối', fGrade)));
+  const fGroup = h('select', {}, options(app.groups(), { empty: 'Tất cả nhóm thi đua' }));
+  el.append(h('div', { class: 'filters' }, field('Tuần', fWeek), field('Nhóm thi đua', fGroup), field('Cơ sở', fCampus), field('Khối', fGrade)));
   const bar = h('div', { class: 'actions no-print', style: 'margin-bottom:12px' });
   const body = h('div');
   el.append(bar, body);
-  [fWeek, fCampus, fGrade].forEach(x => x.addEventListener('change', load));
+  [fWeek, fGroup, fCampus, fGrade].forEach(x => x.addEventListener('change', load));
   let data = null;
 
   async function load() {
     loading(body);
-    try { data = await app.call('score.week', { week_id: fWeek.value, campus_id: fCampus.value, grade: fGrade.value }); draw(); }
+    try { data = await app.call('score.week', { week_id: fWeek.value, comp_group: fGroup.value, campus_id: fCampus.value, grade: fGrade.value }); draw(); }
     catch (e) { errorBox(body, e, load); }
   }
 
@@ -26,8 +27,8 @@ export async function render(el, app, params) {
       app.can(['score.lock', 'incident.review']) ? h('button', { class: 'btn', onclick: check }, '🔍 Kiểm tra dữ liệu') : '',
       app.can('score.lock') && !locked ? h('button', { class: 'btn green', onclick: lock }, '🔒 Khóa tuần') : '',
       app.can('score.lock') && locked ? h('button', { class: 'btn yellow', onclick: unlock }, '🔓 Mở khóa có lý do') : '',
-      app.can('export.create') ? h('button', { class: 'btn', onclick: () => app.nav('xuat', { week_id: w.week_id, campus_id: fCampus.value, kind: 'BASIC' }) }, '📄 Xuất Excel') : '',
-      app.can('export.create') ? h('button', { class: 'btn', onclick: () => app.nav('xuat', { week_id: w.week_id, campus_id: fCampus.value, kind: 'COMMENT_IMAGES' }) }, '🖼️ Xuất Excel kèm ảnh Comment') : '',
+      app.can('export.create') ? h('button', { class: 'btn', onclick: () => app.nav('xuat', { week_id: w.week_id, campus_id: fCampus.value, comp_group: fGroup.value, kind: 'BASIC' }) }, '📄 Xuất Excel') : '',
+      app.can('export.create') ? h('button', { class: 'btn', onclick: () => app.nav('xuat', { week_id: w.week_id, campus_id: fCampus.value, comp_group: fGroup.value, kind: 'COMMENT_IMAGES' }) }, '🖼️ Xuất Excel kèm ảnh Comment') : '',
       h('button', { class: 'btn ghost', onclick: () => print() }, '🖨️ In / PDF'));
     body.replaceChildren();
     body.append(h('div', { class: 'card' },
@@ -35,7 +36,7 @@ export async function render(el, app, params) {
       h('div', { class: 'small muted', style: 'margin-top:6px' }, `Điểm cuối tuần = Điểm đầu kỳ (${d.starting_points || 'chưa cấu hình'}) + Tổng cộng − Tổng trừ. Chỉ tính bản ghi đã duyệt. Xếp loại: ${d.thresholds}. Đồng hạng: ${tieLabel(d.tie_rule)}.`),
       d.pending ? h('div', { class: 'notice yellow' }, `${d.pending} bản ghi của tuần đang chờ duyệt / bổ sung – chưa được tính.`, ' ', app.can('incident.review') ? h('button', { class: 'btn sm', onclick: () => app.nav('duyet') }, 'Đi duyệt') : '') : '',
       w.unlock_reason && !locked ? h('div', { class: 'notice yellow' }, 'Tuần đã được mở khóa. Lý do: ' + w.unlock_reason) : ''));
-    const cols = [{ label: 'STT', render: (r, i) => i + 1, num: true }, { label: 'Lớp', render: r => h('b', {}, r.class_name) }, { label: 'Điểm ban đầu', key: 'starting_points', num: true }];
+    const cols = [{ label: 'STT', render: (r, i) => i + 1, num: true }, { label: 'Lớp', render: r => h('b', {}, r.class_name) }, ...(app.groups().length ? [{ label: 'Nhóm', key: 'comp_group' }] : []), { label: 'Điểm ban đầu', key: 'starting_points', num: true }];
     d.days.forEach(day => cols.push({ label: `${wdShort(day)} ${fmtDate(day).substr(0, 5)}`, num: true, render: r => {
       const x = r.daily[day]; if (!x) return '';
       return h('span', {}, x.bonus ? h('span', { class: 'pos' }, '+' + x.bonus) : '', x.bonus && x.deduct ? ' ' : '', x.deduct ? h('span', { class: 'neg' }, '−' + x.deduct) : '');
@@ -43,7 +44,7 @@ export async function render(el, app, params) {
     cols.push({ label: 'Cộng', render: r => h('span', { class: 'pos' }, r.bonus_points ? '+' + r.bonus_points : '0'), num: true },
       { label: 'Trừ', render: r => h('span', { class: 'neg' }, r.deducted_points ? '−' + r.deducted_points : '0'), num: true },
       { label: 'Tổng điểm', render: r => h('b', {}, r.final_points), num: true }, { label: 'Xếp loại', key: 'grade_label' },
-      { label: 'Xếp thứ', render: r => h('b', {}, r.rank), num: true },
+      { label: app.groups().length ? 'Xếp thứ (trong nhóm)' : 'Xếp thứ', render: r => h('b', {}, r.rank), num: true },
       { label: 'Minh chứng', render: r => h('button', { class: 'btn sm', onclick: e => { e.stopPropagation(); explain(r); } }, (r.violation_count || 0) + ' lỗi · Xem') });
     const rows = d.rows.slice().sort((a, c) => d.full ? 0 : a.rank - c.rank);
     body.append(table(cols, rows, { onRow: explain, empty: 'Không có lớp nào trong phạm vi.' }));

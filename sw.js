@@ -1,5 +1,5 @@
 /* Service worker: lưu sẵn giao diện để mở nhanh khi mạng yếu. KHÔNG lưu dữ liệu API (mọi yêu cầu API là POST, đi thẳng ra mạng). */
-const VERSION = 'gts-v1.0.0';
+const VERSION = 'gts-v1.1.0';
 const SHELL = ['./', 'index.html', 'config.js', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/api.js', 'js/ui.js', 'js/image.js', 'js/queue.js', 'js/charts.js',
   'js/tabs/overview.js', 'js/tabs/record.js', 'js/tabs/checks.js', 'js/tabs/duty.js', 'js/tabs/review.js', 'js/tabs/scores.js', 'js/tabs/ranking.js',

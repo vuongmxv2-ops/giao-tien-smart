@@ -46,7 +46,7 @@ export async function render(el, app) {
     const g = h('div', { class: 'grid c2' });
     body.append(g);
     g.append(h('div', { class: 'card' }, h('h2', {}, '🏆 Top 5 lớp dẫn đầu (tuần)'),
-      table([{ label: 'Hạng', key: 'rank', num: true }, { label: 'Lớp', key: 'class_name' }, { label: 'Điểm', key: 'final_points', num: true }], d.top, { empty: 'Chưa có dữ liệu xếp hạng (kiểm tra cấu hình điểm đầu kỳ).' })));
+      table([{ label: 'Hạng', key: 'rank', num: true }, { label: 'Lớp', key: 'class_name' }, { label: 'Nhóm', key: 'comp_group' }, { label: 'Điểm', key: 'final_points', num: true }], d.top, { empty: 'Chưa có dữ liệu xếp hạng (kiểm tra cấu hình điểm đầu kỳ).' })));
     g.append(h('div', { class: 'card' }, h('h2', {}, '⚠️ Lớp cần nhắc nhở'),
       table([{ label: 'Lớp', key: 'class_name' }, { label: 'Lượt vi phạm', key: 'count', num: true }], d.warn_classes, { empty: 'Không có lớp vi phạm trong kỳ.' })));
 

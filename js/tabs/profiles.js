@@ -1,7 +1,7 @@
 import { h, options, field, toast, loading, errorBox, table, badge, fmtDate, fmtDateTime, signed, modal, readSheetFile, mapColumns, askReason } from '../ui.js';
 
 export const CLASS_COLS = { name: ['Lớp', 'Tên lớp', 'name'], grade: ['Khối', 'grade'], campus_code: ['Cơ sở', 'Mã cơ sở', 'campus_code', 'campus'],
-  homeroom_name: ['GVCN', 'Giáo viên chủ nhiệm', 'homeroom_name'], homeroom_email: ['Email GVCN', 'homeroom_email', 'Email'], sort_order: ['STT', 'Thứ tự', 'sort_order'] };
+  homeroom_name: ['GVCN', 'Giáo viên chủ nhiệm', 'homeroom_name'], homeroom_email: ['Email GVCN', 'homeroom_email', 'Email'], sort_order: ['STT', 'Thứ tự', 'sort_order'], comp_group: ['Nhóm thi đua', 'Nhóm', 'comp_group'] };
 export const STUDENT_COLS = { student_code: ['Mã học sinh', 'Mã HS', 'student_code', 'Mã định danh'], full_name: ['Họ và tên', 'Họ tên', 'full_name'], class_name: ['Lớp', 'class_name'], status: ['Tình trạng', 'Trạng thái', 'status'] };
 const ST_LABEL = { DANG_HOC: 'Đang học', CHUYEN_DI: 'Chuyển đi', NGHI_HOC: 'Nghỉ học', BAO_LUU: 'Bảo lưu' };
 
@@ -30,7 +30,7 @@ export async function render(el, app) {
     const c = app.classById(fClass.value);
     info.replaceChildren(c ? h('div', { class: 'card' }, h('b', {}, 'Lớp ' + c.name), ` · Khối ${c.grade} · ${app.campusName(c.campus_id)} · GVCN: ${c.homeroom_name || '—'} · Năm học ${b.year?.name || ''}`) : '');
     if (!fClass.value && !fQ.value.trim()) {
-      body.replaceChildren(table([{ label: 'Lớp', key: 'name' }, { label: 'Khối', key: 'grade', num: true }, { label: 'Cơ sở', render: r => app.campusName(r.campus_id) }, { label: 'GVCN', key: 'homeroom_name' }], classes,
+      body.replaceChildren(table([{ label: 'Lớp', key: 'name' }, { label: 'Khối', key: 'grade', num: true }, { label: 'Cơ sở', render: r => app.campusName(r.campus_id) }, { label: 'Nhóm thi đua', key: 'comp_group' }, { label: 'GVCN', key: 'homeroom_name' }], classes,
         { onRow: r => { fClass.value = r.class_id; load(); } }));
       return;
     }
