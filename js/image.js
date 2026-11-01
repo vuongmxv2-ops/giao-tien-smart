@@ -47,18 +47,30 @@ export function resizeTo(src, maxSide, quality = 0.82) {
 }
 
 export async function processImage(file) {
-  const buf = await file.arrayBuffer();
-  const checksum = await sha256Hex(buf);
-  const mime = normalizeMime(file);
+  let blob = file, mime = normalizeMime(file), name = file.name || ('anh_' + Date.now() + '.jpg');
   let width = '', height = '', preview = null, thumb = null, warning = '';
   try {
     const src = await decode(file);
     ({ w: width, h: height } = dims(src));
-    preview = await resizeTo(src, 1280, 0.82);
+    if (file.size > MAX_UPLOAD_BYTES || Math.max(width, height) > MAX_SIDE) {
+      // Ảnh điện thoại 3–8 MB: nén về cạnh dài 2048 px (vẫn đủ rõ để làm minh chứng), nhỏ hơn khoảng 5–10 lần nên gửi nhanh.
+      // Ảnh đã được xoay đúng chiều khi vẽ lại; bản này vừa là ảnh lưu trữ vừa dùng làm ảnh xem trước.
+      const s = Math.min(1, MAX_SIDE / Math.max(width, height));
+      blob = await resizeTo(src, MAX_SIDE, 0.85);
+      width = Math.round(width * s); height = Math.round(height * s);
+      mime = 'image/jpeg'; name = name.replace(/\.\w+$/, '') + '.jpg';
+    } else {
+      preview = await resizeTo(src, 1280, 0.82);
+    }
     thumb = await resizeTo(src, 320, 0.7);
     if (src.close) src.close();
   } catch (e) {
-    warning = 'Không tạo được ảnh xem trước (' + e.message + '). Ảnh gốc vẫn được gửi.';
+    warning = 'Không tạo được ảnh thu nhỏ (' + e.message + '). Ảnh gốc vẫn được gửi.';
   }
-  return { name: file.name || ('anh_' + Date.now() + '.jpg'), mime, size: file.size, blob: file, checksum, width, height, preview, thumb, warning };
+  const checksum = await sha256Hex(await blob.arrayBuffer());
+  return { name, mime, size: blob.size, originalSize: file.size, blob, checksum, width, height, preview, thumb, warning };
 }
+
+/** Ảnh lớn hơn ngưỡng này sẽ được nén trước khi gửi. */
+const MAX_UPLOAD_BYTES = 1.5 * 1024 * 1024;
+const MAX_SIDE = 2048;

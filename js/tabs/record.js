@@ -139,15 +139,17 @@ export async function render(el, app, params) {
       status.replaceChildren(h('div', { class: 'notice yellow' }, 'Đang mất mạng: bản ghi đã lưu trên máy, CHƯA gửi lên máy chủ. Hệ thống sẽ tự gửi khi có mạng.'));
       busy = false; submitBtn.disabled = false; return;
     }
-    status.replaceChildren(h('div', { class: 'notice' }, h('span', { class: 'spinner' }), ' Đang gửi…'));
-    try {
-      const r = await outbox.send(rec.id);
-      status.replaceChildren(h('div', { class: 'notice green' }, '✔ Máy chủ đã lưu bản ghi và ' + r.images.length + ' ảnh. Trạng thái: CHỜ DUYỆT.' + (r.dup ? ' (Hệ thống đánh dấu NGHI TRÙNG để người duyệt kiểm tra.)' : '')));
-      toast('Đã gửi thành công', 'ok');
-      loadMine();
-    } catch (e) {
-      status.replaceChildren(h('div', { class: 'notice red' }, '✖ Chưa gửi được: ' + e.message + ' – Dữ liệu vẫn được giữ trên máy, bấm "Gửi lại" bên dưới.'));
-    } finally { busy = false; submitBtn.disabled = false; }
+    // Gửi ngầm: biểu mẫu sẵn sàng ngay cho lần ghi nhận tiếp theo. Chỉ báo "đã lưu" khi máy chủ xác nhận.
+    busy = false; submitBtn.disabled = false;
+    status.replaceChildren(h('div', { class: 'notice' }, h('span', { class: 'spinner' }), ` Đang gửi "${rec.label}" lên máy chủ… Bạn có thể ghi nhận tiếp, theo dõi ở mục "Trạng thái gửi" bên dưới.`));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    outbox.send(rec.id).then(r => {
+      toast(`✔ Đã lưu: ${rec.label} (${r.images.length} ảnh) – CHỜ DUYỆT` + (r.dup ? ' – nghi trùng' : ''), 'ok', 5000);
+      if (el.isConnected) { status.replaceChildren(h('div', { class: 'notice green' }, `✔ Máy chủ đã lưu "${rec.label}" và ${r.images.length} ảnh. Trạng thái: CHỜ DUYỆT.`)); loadMine(); }
+    }).catch(e => {
+      toast(`✖ Chưa gửi được "${rec.label}": ${e.message}. Dữ liệu vẫn giữ trên máy.`, 'err', 8000);
+      if (el.isConnected) status.replaceChildren(h('div', { class: 'notice red' }, `✖ Chưa gửi được "${rec.label}": ${e.message} – Dữ liệu vẫn được giữ trên máy, bấm "Gửi lại" bên dưới.`));
+    });
   }
 
   async function drawOutbox() {
