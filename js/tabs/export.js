@@ -1,5 +1,5 @@
 import { h, options, field, toast, loading, errorBox, table, download, blobToB64, b64ToBlob, fmtDateTime, devNote, fmtDate } from '../ui.js';
-import { buildWeekWorkbook, whoLabel, namesEnabled } from '../xlsx/report.js';
+import { buildWeekWorkbook, whoLabel, namesEnabled, captionLines } from '../xlsx/report.js';
 import { annotateImage } from '../xlsx/collage.js';
 import { decode } from '../image.js';
 
@@ -26,7 +26,7 @@ export async function render(el, app, params) {
   const photoResult = h('div');
   const btnPhotos = h('button', { class: 'btn btn-hero', style: 'min-height:60px;font-size:16px', onclick: runPhotos }, '🗂️ TẢI TOÀN BỘ ẢNH THEO LỚP (.zip)');
   el.append(h('div', { class: 'card' }, h('h2', {}, 'Ảnh minh chứng gửi về các lớp'), btnPhotos,
-    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Lấy ảnh của các bản ghi ĐÃ DUYỆT trong tuần (theo bộ lọc ở trên). Mỗi lớp một thư mục; mỗi ảnh có dải chữ ghi lỗi, điểm, tên học sinh hoặc (Lỗi tập thể), lớp, ngày giờ. Tên tệp dạng 7A2_01-11_07h05_Di_hoc_muon_Nguyen_Van_A.jpg.'),
+    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Lấy ảnh của các bản ghi ĐÃ DUYỆT trong tuần (theo bộ lọc ở trên). Mỗi lớp một thư mục; mỗi ảnh có dải chữ 3 dòng: thứ, giờ, ngày / họ và tên (hoặc Lỗi tập thể), lớp / lỗi vi phạm, điểm. Tên tệp dạng 7A2_01-11_07h05_Di_hoc_muon_Nguyen_Van_A.jpg.'),
     photoProg, photoLog, photoResult));
 
   // Báo cáo khác
@@ -146,7 +146,7 @@ export async function render(el, app, params) {
             const src = await decode(b64ToBlob(x.base64, x.mime));
             const who = whoLabel(j.it, namesOn);
             const pts = j.k === 0 ? (j.it.points > 0 ? '+' : '') + j.it.points + ' điểm' : '(ảnh tiếp)';
-            const lines = [`${j.it.type_name.toUpperCase()}  ${pts}`].concat(who ? [who] : [], [`Lớp ${j.cls} · ${fmtDate(j.it.date)} ${j.it.time || ''}`]);
+            const lines = captionLines(j.it, j.cls, namesOn, pts);
             const blob = await annotateImage(src, { lines, positive: j.it.points > 0 });
             if (src.close) src.close();
             let base = [j.cls, j.it.date.slice(8, 10) + '-' + j.it.date.slice(5, 7), (j.it.time || '').replace(':', 'h'), j.it.type_name, who.replace(/[()]/g, '')].filter(Boolean).map(slug).join('_');

@@ -20,6 +20,14 @@ export function whoLabel(it, namesOn) {
 }
 export const namesEnabled = items => items.some(i => i.student_name);
 
+/** 3 dòng chú thích ảnh: (1) Thứ · giờ · ngày, (2) Họ và tên – Lớp, (3) Lỗi vi phạm + điểm. */
+export function captionLines(it, className, namesOn, points) {
+  const who = whoLabel(it, namesOn);
+  return [[WD[wdOf(it.date)], it.time, vnDate(it.date)].filter(Boolean).join(' · '),
+    (who ? who + ' – ' : '') + 'Lớp ' + className,
+    `${it.type_name.toUpperCase()}  ${points}`];
+}
+
 export function parseThresholds(str) {
   return String(str || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean).map(p => { const [l, m] = p.split(':'); return { label: l.trim(), min: m !== undefined && m.trim() !== '' ? Number(m) : null }; });
 }
@@ -127,8 +135,7 @@ export async function buildWeekWorkbook({ data, templateBytes, withImages, loadI
       if (withImages && g.images.length) {
         onLog(`Ghép ảnh lớp ${c.name} – ${WD[wdOf(days[col.day])]} (${g.images.length} ảnh)`);
         const tiles = g.images.map(im => ({ source: imgMap.get(im.evidence.evidence_id), positive: im.incident.points > 0,
-          caption: `${im.incident.type_name.toUpperCase()} ${im.evidence === im.incident.evidence[0] ? sg(im.incident.points) : '(tiếp)'}`,
-          who: whoLabel(im.incident, namesOn), sub: `${c.name} · ${vnDate(im.incident.date)} ${im.incident.time || ''}` }));
+          lines: captionLines(im.incident, c.name, namesOn, im.evidence === im.incident.evidence[0] ? sg(im.incident.points) + ' điểm' : '(ảnh tiếp)') }));
         const col2 = await composeCollage(tiles);
         const name = `${c.name}_${days[col.day].replace(/-/g, '')}_${col.role}${col.k + 1}.jpg`;
         comments.push({ ...ref, image: { bytes: col2.bytes, wPx: col2.wPx, hPx: col2.hPx, wPt: g.images.length === 1 ? 330 : 480, name } });

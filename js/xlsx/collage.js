@@ -8,8 +8,7 @@ export async function composeCollage(tiles, { tile = 640, quality = 0.82 } = {})
   const cols = n === 1 ? 1 : 2, rows = n <= 2 ? 1 : 2;
   const portrait = tiles.filter(t => dim(t.source).h > dim(t.source).w).length > n / 2;
   const tw = portrait ? Math.round(tile * 0.75) : tile, th = portrait ? tile : Math.round(tile * 0.75);
-  const withWho = tiles.some(t => t.who);
-  const cap = Math.round(tile * (withWho ? 0.14 : 0.1)), gap = 6;
+  const cap = Math.round(tile * 0.17), gap = 6;
   const W = cols * tw + (cols + 1) * gap, H = rows * (th + cap) + (rows + 1) * gap;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
@@ -24,19 +23,11 @@ export async function composeCollage(tiles, { tile = 640, quality = 0.82 } = {})
     g.drawImage(t.source, x0 + Math.round((tw - dw) / 2), y0 + Math.round((th - dh) / 2), dw, dh);
     g.fillStyle = t.positive ? '#1b5e20' : '#b71c1c'; g.fillRect(x0, y0 + th, tw, cap);
     g.fillStyle = '#ffffff'; g.textBaseline = 'middle';
-    let fs = Math.round(cap * (withWho ? 0.28 : 0.46));
-    g.font = `bold ${fs}px Arial, sans-serif`;
-    while (g.measureText(t.caption).width > tw - 16 && fs > 10) { fs--; g.font = `bold ${fs}px Arial, sans-serif`; }
-    if (withWho) {
-      // 3 dòng: lỗi + điểm / tên học sinh hoặc (Lỗi tập thể) / lớp · ngày giờ
-      g.fillText(t.caption, x0 + 8, y0 + th + cap * 0.22);
-      fitText(g, t.who || '', tw - 16, Math.round(cap * 0.26), 'bold ');
-      g.fillText(t.who || '', x0 + 8, y0 + th + cap * 0.52);
-      if (t.sub) { fitText(g, t.sub, tw - 16, Math.round(cap * 0.2), ''); g.fillText(t.sub, x0 + 8, y0 + th + cap * 0.8); }
-    } else {
-      g.fillText(t.caption, x0 + 8, y0 + th + cap * (t.sub ? 0.36 : 0.5));
-      if (t.sub) { g.font = `${Math.round(cap * 0.3)}px Arial, sans-serif`; g.fillText(t.sub, x0 + 8, y0 + th + cap * 0.76); }
-    }
+    t.lines.forEach((txt, k) => {
+      const st = LINE_STYLE[k] || LINE_STYLE[0];
+      fitText(g, txt, tw - 16, Math.round(cap * 0.27 * st.size), st.weight);
+      g.fillText(txt, x0 + 8, y0 + th + cap * (0.19 + 0.31 * k));
+    });
   });
   const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', quality));
   return { bytes: new Uint8Array(await blob.arrayBuffer()), wPx: W, hPx: H };
@@ -59,11 +50,15 @@ export async function annotateImage(source, { lines, positive }, { maxSide = 204
   g.fillStyle = positive ? '#1b5e20' : '#b71c1c'; g.fillRect(0, dh, dw, band);
   g.fillStyle = '#ffffff'; g.textBaseline = 'middle';
   lines.forEach((t, i) => {
-    fitText(g, t, dw - pad * 2, Math.round(lh * (i === 0 ? 0.8 : 0.68)), i < 2 ? 'bold ' : '');
+    const st = LINE_STYLE[i] || LINE_STYLE[0];
+    fitText(g, t, dw - pad * 2, Math.round(lh * 0.8 * st.size), st.weight);
     g.fillText(t, pad, dh + pad + lh * (i + 0.5));
   });
   return new Promise(res => c.toBlob(res, 'image/jpeg', quality));
 }
+
+/** Kiểu chữ 3 dòng chú thích: (1) Thứ · giờ · ngày, (2) Họ và tên – Lớp, (3) Lỗi vi phạm + điểm (nổi bật nhất). */
+const LINE_STYLE = [{ size: 0.85, weight: '' }, { size: 0.95, weight: 'bold ' }, { size: 1, weight: 'bold ' }];
 
 function fitText(g, text, maxW, size, weight) {
   let fs = size;
