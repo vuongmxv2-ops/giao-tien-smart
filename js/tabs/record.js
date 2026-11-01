@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, nowLocalInput, signed, uid, askReason, modal, b64ToBlob } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, nowLocalInput, signed, uid, askReason, modal, b64ToBlob, searchSelect } from '../ui.js';
 import { processImage } from '../image.js';
 import * as outbox from '../queue.js';
 
@@ -17,8 +17,9 @@ export async function render(el, app, params) {
   const thumbs = h('div', { class: 'thumbs' });
   const fCampus = h('select', {}, options(campuses, { value: 'campus_id', label: 'name' }));
   const fClass = h('select');
-  const fStudent = h('select', {}, h('option', { value: '' }, '— Không xác định —'));
-  const fType = h('select', {}, options(b.types, { value: 'type_id', label: t => `${t.kind === 'CONG' ? '[CỘNG] ' : ''}${t.name}${t.points != null ? ' (' + signed(t.points) + ')' : ''}`, empty: '— Chọn loại vi phạm —' }));
+  const fStudent = searchSelect({ placeholder: 'Gõ tên học sinh để tìm (có thể bỏ trống)', emptyLabel: '— Không xác định —' });
+  const fType = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: mu, muon, truy bai', items: b.types.map(t => ({
+    value: t.type_id, label: `${t.kind === 'CONG' ? '[CỘNG] ' : ''}${t.name}${t.points != null ? ' (' + signed(t.points) + ')' : ''}`, sub: t.group_name || '' })) });
   const pts = h('div', { class: 'small muted' });
   const fNote = h('textarea', { placeholder: 'Mô tả ngắn (không ghi thông tin cá nhân không cần thiết)', maxlength: 1000 });
   const timeShow = h('b', {}, 'Tự động theo giờ máy chủ khi gửi');
@@ -32,11 +33,14 @@ export async function render(el, app, params) {
     loadStudents();
   };
   async function loadStudents() {
-    fStudent.replaceChildren(h('option', { value: '' }, '— Không xác định —'));
+    fStudent.setItems([]);
     if (!fClass.value || !app.can(['student.lookup', 'student.view', 'incident.review'])) return;
     try {
       const list = await app.call('student.search', { class_id: fClass.value });
-      fStudent.append(...options(list, { value: 'student_id', label: s => `${s.full_name} (${s.student_code})` }));
+      // Chỉ hiện họ tên; trùng tên trong lớp thì đánh số (1), (2) để phân biệt
+      const count = {}, seen = {};
+      list.forEach(s => { count[s.full_name] = (count[s.full_name] || 0) + 1; });
+      fStudent.setItems(list.map(s => ({ value: s.student_id, label: count[s.full_name] > 1 ? `${s.full_name} (${seen[s.full_name] = (seen[s.full_name] || 0) + 1})` : s.full_name })));
     } catch { /* không bắt buộc */ }
   }
   fCampus.addEventListener('change', fillClasses);
@@ -64,8 +68,21 @@ export async function render(el, app, params) {
       } catch (e) { ph.remove(); toast('Không đọc được ảnh: ' + e.message, 'err'); }
     }
   }
-  camInput.addEventListener('change', () => { addFiles([...camInput.files]); camInput.value = ''; });
-  libInput.addEventListener('change', () => { addFiles([...libInput.files]); libInput.value = ''; });
+  /**
+   * Android thu hồi quyền đọc ảnh ngay khi ô chọn tệp bị xóa, và có thể thu hồi khi gửi lại sau.
+   * Vì vậy chép toàn bộ nội dung ảnh vào bộ nhớ TRƯỚC, rồi mới xóa ô chọn tệp.
+   */
+  async function takeFiles(input) {
+    const picked = [...input.files], copies = [];
+    for (const f of picked) {
+      try { copies.push(new File([await f.arrayBuffer()], f.name || ('anh_' + Date.now() + '.jpg'), { type: f.type, lastModified: f.lastModified })); }
+      catch (e) { toast('Không đọc được ảnh ' + (f.name || '') + '. Hãy chụp lại hoặc chọn ảnh khác.', 'err', 6000); }
+    }
+    input.value = '';
+    await addFiles(copies);
+  }
+  camInput.addEventListener('change', () => takeFiles(camInput));
+  libInput.addEventListener('change', () => takeFiles(libInput));
 
   const hero = h('button', { class: 'btn btn-hero', type: 'button', onclick: () => camInput.click() }, h('span', { class: 'ic' }, '📷'), 'CHỤP ẢNH – GHI NHẬN VI PHẠM');
   const timeBox = h('div', { class: 'f' }, h('span', { class: 'small muted' }, 'Ngày giờ ghi nhận: '), timeShow,

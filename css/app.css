@@ -153,6 +153,11 @@ table.tbl { border-collapse: collapse; width: 100%; background: #fff; font-size:
 .progress > i { display: block; height: 100%; background: var(--green); width: 0; transition: width .2s; }
 .dev { display: inline-block; background: #eceff1; color: #546e7a; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .chart-box { position: relative; height: 260px; }
+.ss { position: relative; }
+.ss-panel { position: absolute; z-index: 60; left: 0; right: 0; top: calc(100% + 4px); max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); -webkit-overflow-scrolling: touch; }
+.ss-opt { padding: 11px 12px; border-bottom: 1px solid #eef1f5; cursor: pointer; }
+.ss-opt:last-child { border-bottom: 0; }
+.ss-opt:hover, .ss-opt.on { background: var(--blue-l); }
 
 .login { max-width: 440px; margin: 8vh auto; text-align: center; }
 .login .card { padding: 26px 20px; }

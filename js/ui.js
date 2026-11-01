@@ -180,3 +180,36 @@ export function mapColumns(rows, map) {
 }
 
 export function devNote(text = 'Đang phát triển') { return h('span', { class: 'dev' }, text); }
+
+/** Bỏ dấu tiếng Việt để tìm kiếm: "thieu mu" khớp "Thiếu mũ trắng". */
+export const fold = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+
+/**
+ * Ô chọn có tìm nhanh: gõ vài chữ (có dấu hoặc không) để lọc danh sách rồi chạm chọn.
+ * items: [{value, label, sub?}]. Phần tử trả về có thuộc tính .value và phát sự kiện 'change' như <select>.
+ */
+export function searchSelect({ items = [], placeholder = 'Gõ để tìm…', emptyLabel = '', maxShow = 60 } = {}) {
+  let list = items, value = '';
+  const input = h('input', { type: 'search', placeholder, autocomplete: 'off', class: 'ss-input', enterkeyhint: 'search' });
+  const panel = h('div', { class: 'ss-panel', hidden: true });
+  const wrap = h('div', { class: 'ss' }, input, panel);
+  const labelOf = v => (list.find(i => i.value === v) || {}).label || '';
+  const pick = it => { value = it ? it.value : ''; input.value = it ? it.label : ''; panel.hidden = true; input.blur(); wrap.dispatchEvent(new Event('change')); };
+  const render = () => {
+    const words = fold(input.value).trim().split(/\s+/).filter(Boolean);
+    const match = list.filter(it => { const t = fold(it.label + ' ' + (it.sub || '')); return words.every(w => t.includes(w)); }).slice(0, maxShow);
+    // preventDefault: ô nằm trong <label>, không để nhãn kéo con trỏ về ô nhập rồi mở lại danh sách
+    const opt = (it, text, sub, cls) => h('div', { class: 'ss-opt ' + (cls || ''), onclick: e => { e.preventDefault(); pick(it); } }, h('div', {}, text), sub ? h('div', { class: 'small muted' }, sub) : '');
+    panel.replaceChildren(
+      ...(emptyLabel ? [opt(null, emptyLabel, '', 'muted')] : []),
+      ...match.map(it => opt(it, it.label, it.sub, it.value === value ? 'on' : '')),
+      ...(match.length ? [] : [h('div', { class: 'ss-opt muted' }, 'Không tìm thấy')]));
+    panel.hidden = false;
+  };
+  input.addEventListener('focus', () => { input.select(); render(); });
+  input.addEventListener('input', render);
+  input.addEventListener('blur', () => setTimeout(() => { panel.hidden = true; input.value = labelOf(value); }, 250));
+  Object.defineProperty(wrap, 'value', { get: () => value, set: v => { value = v || ''; input.value = labelOf(value); } });
+  wrap.setItems = its => { list = its; if (!list.some(i => i.value === value)) value = ''; input.value = labelOf(value); };
+  return wrap;
+}
