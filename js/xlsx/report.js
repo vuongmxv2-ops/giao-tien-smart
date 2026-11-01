@@ -9,6 +9,17 @@ const vnDate = k => k.split('-').reverse().join('/');
 const sg = v => (v > 0 ? '+' : '') + v;
 const r2 = x => Math.round(x * 100) / 100;
 
+/**
+ * Ghi chú người vi phạm: tên học sinh, hoặc "(Lỗi tập thể)" khi bản ghi không gắn học sinh.
+ * Máy chủ chỉ gửi tên khi bật "Ghi tên học sinh trong ghi chú Excel"; nếu cả tuần không có tên nào thì coi như chưa bật
+ * và để trống (không đoán "tập thể" cho mọi bản ghi).
+ */
+export function whoLabel(it, namesOn) {
+  if (it.student_name) return it.student_name;
+  return namesOn ? '(Lỗi tập thể)' : '';
+}
+export const namesEnabled = items => items.some(i => i.student_name);
+
 export function parseThresholds(str) {
   return String(str || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean).map(p => { const [l, m] = p.split(':'); return { label: l.trim(), min: m !== undefined && m.trim() !== '' ? Number(m) : null }; });
 }
@@ -58,6 +69,8 @@ export async function buildWeekWorkbook({ data, templateBytes, withImages, loadI
   const t = parseThresholds(data.thresholds);
   const days = data.days.slice();
   const warnings = [];
+  const namesOn = namesEnabled(data.items);
+  if (data.items.length && !namesOn) warnings.push('Chưa có tên học sinh trong ghi chú: vào Quản trị → Cài đặt khác → "Ghi tên học sinh trong ghi chú Excel" chọn Có rồi xuất lại.');
   const dayIndex = k => {
     let i = days.indexOf(k);
     if (i >= 0) return i;
@@ -115,7 +128,7 @@ export async function buildWeekWorkbook({ data, templateBytes, withImages, loadI
         onLog(`Ghép ảnh lớp ${c.name} – ${WD[wdOf(days[col.day])]} (${g.images.length} ảnh)`);
         const tiles = g.images.map(im => ({ source: imgMap.get(im.evidence.evidence_id), positive: im.incident.points > 0,
           caption: `${im.incident.type_name.toUpperCase()} ${im.evidence === im.incident.evidence[0] ? sg(im.incident.points) : '(tiếp)'}`,
-          sub: `${c.name} · ${vnDate(im.incident.date)} ${im.incident.time || ''}` }));
+          who: whoLabel(im.incident, namesOn), sub: `${c.name} · ${vnDate(im.incident.date)} ${im.incident.time || ''}` }));
         const col2 = await composeCollage(tiles);
         const name = `${c.name}_${days[col.day].replace(/-/g, '')}_${col.role}${col.k + 1}.jpg`;
         comments.push({ ...ref, image: { bytes: col2.bytes, wPx: col2.wPx, hPx: col2.hPx, wPt: g.images.length === 1 ? 330 : 480, name } });
@@ -125,7 +138,7 @@ export async function buildWeekWorkbook({ data, templateBytes, withImages, loadI
         const noImg = g.incidents.filter(x => !x.evidence.length);
         noImg.forEach(x => detail.push([c.name, vnDate(x.date), WD[wdOf(x.date)], '(không có ảnh)', x.points, x.type_name, cellAddr, x.incident_id]));
       } else {
-        const text = g.incidents.map(x => `${x.type_name} ${sg(x.points)}${x.time ? ' (' + x.time + ')' : ''}${x.student_name ? ' – ' + x.student_name : ''}`).join('\n');
+        const text = g.incidents.map(x => `${x.type_name} ${sg(x.points)}${x.time ? ' (' + x.time + ')' : ''}${whoLabel(x, namesOn) ? ' – ' + whoLabel(x, namesOn) : ''}`).join('\n');
         comments.push({ ...ref, text });
         g.incidents.forEach(x => detail.push([c.name, vnDate(x.date), WD[wdOf(x.date)], x.evidence.map(e => e.filename || e.evidence_id).join('; ') || '(không có ảnh)', x.points, x.type_name, cellAddr, x.incident_id]));
       }

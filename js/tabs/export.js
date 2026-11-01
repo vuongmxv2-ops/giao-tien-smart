@@ -1,5 +1,6 @@
 import { h, options, field, toast, loading, errorBox, table, download, blobToB64, b64ToBlob, fmtDateTime, devNote, fmtDate } from '../ui.js';
-import { buildWeekWorkbook } from '../xlsx/report.js';
+import { buildWeekWorkbook, whoLabel, namesEnabled } from '../xlsx/report.js';
+import { annotateImage } from '../xlsx/collage.js';
 import { decode } from '../image.js';
 
 /** TAB 11 – XUẤT BÁO CÁO – EXCEL KÈM MINH CHỨNG */
@@ -18,6 +19,15 @@ export async function render(el, app, params) {
     h('div', { class: 'grid c2' }, btnBasic, btnImg),
     h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Nút 1: điểm cộng/trừ theo ngày, tổng, xếp loại, xếp thứ, ghi chú văn bản. Nút 2: ảnh minh chứng đã duyệt được ghép (tối đa 4 ảnh/nhóm) và đặt trong Note của đúng ô – mở bằng Microsoft Excel trên máy tính để xem ảnh.'),
     prog, logBox, result));
+
+  // Gói ảnh minh chứng gửi về các lớp
+  const photoLog = h('div', { class: 'small', style: 'max-height:160px;overflow:auto' });
+  const photoProg = h('div', { class: 'progress', hidden: true }, h('i'));
+  const photoResult = h('div');
+  const btnPhotos = h('button', { class: 'btn btn-hero', style: 'min-height:60px;font-size:16px', onclick: runPhotos }, '🗂️ TẢI TOÀN BỘ ẢNH THEO LỚP (.zip)');
+  el.append(h('div', { class: 'card' }, h('h2', {}, 'Ảnh minh chứng gửi về các lớp'), btnPhotos,
+    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Lấy ảnh của các bản ghi ĐÃ DUYỆT trong tuần (theo bộ lọc ở trên). Mỗi lớp một thư mục; mỗi ảnh có dải chữ ghi lỗi, điểm, tên học sinh hoặc (Lỗi tập thể), lớp, ngày giờ. Tên tệp dạng 7A2_01-11_07h05_Di_hoc_muon_Nguyen_Van_A.jpg.'),
+    photoProg, photoLog, photoResult));
 
   // Báo cáo khác
   el.append(h('div', { class: 'card' }, h('h2', {}, 'Báo cáo khác'), h('div', { class: 'actions' },
@@ -100,6 +110,77 @@ export async function render(el, app, params) {
       log('✖ ' + e.message);
       result.replaceChildren(h('div', { class: 'notice red' }, 'Xuất thất bại: ' + e.message));
     } finally { busy = false; btnBasic.disabled = btnImg.disabled = false; }
+  }
+
+  async function runPhotos() {
+    if (busy) return;
+    if (!window.JSZip) return toast('Chưa tải được thư viện JSZip. Kiểm tra mạng rồi tải lại trang.', 'err');
+    busy = true; btnPhotos.disabled = btnBasic.disabled = btnImg.disabled = true;
+    photoLog.replaceChildren(); photoResult.replaceChildren();
+    const plog = m => { photoLog.append(h('div', {}, '• ' + m)); photoLog.scrollTop = 1e9; };
+    const pset = p => { photoProg.hidden = false; photoProg.firstChild.style.width = Math.round(p * 100) + '%'; };
+    pset(0.02);
+    try {
+      const data = await app.call('export.weekData', { week_id: fWeek.value, campus_id: fCampus.value, comp_group: fGroup.value });
+      const cname = new Map(data.classes.map(c => [c.class_id, c.name]));
+      const namesOn = namesEnabled(data.items);
+      if (data.items.length && !namesOn) plog('⚠ Chưa có tên học sinh: vào Quản trị → Cài đặt khác → "Ghi tên học sinh trong ghi chú Excel" chọn Có rồi tải lại.');
+      // Danh sách ảnh cần lấy, giữ thứ tự thời gian
+      const jobs = [];
+      for (const it of data.items) it.evidence.forEach((e, k) => jobs.push({ it, e, k, cls: cname.get(it.class_id) || it.class_id }));
+      plog(`${data.items.length} bản ghi đã duyệt, ${jobs.length} ảnh, ${new Set(jobs.map(j => j.cls)).size} lớp.`);
+      if (!jobs.length) throw new Error('Tuần này chưa có ảnh minh chứng nào đã duyệt.');
+      const zip = new JSZip(), used = new Set(), perClass = {};
+      let done = 0, failed = [];
+      for (let i = 0; i < jobs.length; i += 6) {
+        const part = jobs.slice(i, i + 6);
+        const got = new Map();
+        try {
+          const r = await app.call('evidence.getMany', { ids: part.map(j => j.e.evidence_id), size: 'original' }, { timeout: 180000 });
+          r.items.forEach(x => { if (!x.error && x.base64) got.set(x.evidence_id, x); });
+        } catch (e) { plog('⚠ ' + e.message + ' – thử lấy từng ảnh.'); }
+        for (const j of part) {
+          try {
+            let x = got.get(j.e.evidence_id);
+            if (!x) x = await app.call('evidence.get', { evidence_id: j.e.evidence_id, size: 'original' }, { timeout: 180000 });
+            const src = await decode(b64ToBlob(x.base64, x.mime));
+            const who = whoLabel(j.it, namesOn);
+            const pts = j.k === 0 ? (j.it.points > 0 ? '+' : '') + j.it.points + ' điểm' : '(ảnh tiếp)';
+            const lines = [`${j.it.type_name.toUpperCase()}  ${pts}`].concat(who ? [who] : [], [`Lớp ${j.cls} · ${fmtDate(j.it.date)} ${j.it.time || ''}`]);
+            const blob = await annotateImage(src, { lines, positive: j.it.points > 0 });
+            if (src.close) src.close();
+            let base = [j.cls, j.it.date.slice(8, 10) + '-' + j.it.date.slice(5, 7), (j.it.time || '').replace(':', 'h'), j.it.type_name, who.replace(/[()]/g, '')].filter(Boolean).map(slug).join('_');
+            base = base.slice(0, 110);
+            let name = `${slug(j.cls)}/${base}.jpg`, n = 2;
+            while (used.has(name)) name = `${slug(j.cls)}/${base}_${n++}.jpg`;
+            used.add(name);
+            zip.file(name, blob);
+            perClass[j.cls] = (perClass[j.cls] || 0) + 1;
+          } catch (e) { failed.push(j.e.evidence_id); plog(`✖ Không xử lý được ảnh ${j.e.filename || j.e.evidence_id}: ${e.message}`); }
+          done++; pset(0.05 + 0.85 * done / jobs.length);
+        }
+        plog(`Đã xử lý ${done}/${jobs.length} ảnh…`);
+      }
+      const scope = (fCampus.value ? (b.campuses.find(c => c.campus_id === fCampus.value)?.code || 'CS') : 'TOAN_TRUONG') + (fGroup.value ? '_' + slug(fGroup.value).toUpperCase() : '');
+      const filename = `ANH_MINH_CHUNG_T${data.week.week_no}_${scope}.zip`;
+      plog('Đang đóng gói tệp ZIP…');
+      const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+      pset(1);
+      download(out, filename);
+      const ok = jobs.length - failed.length;
+      photoResult.replaceChildren(h('div', { class: 'notice ' + (failed.length ? 'yellow' : 'green') },
+        `${failed.length ? '⚠' : '✔'} Đã tải ${filename}: ${ok}/${jobs.length} ảnh, ${Object.keys(perClass).length} lớp (${(out.size / 1048576).toFixed(1)} MB). `,
+        failed.length ? `${failed.length} ảnh lỗi chưa có trong gói – bấm lại để thử lần nữa. ` : '',
+        h('button', { class: 'btn sm', onclick: () => download(out, filename) }, 'Tải lại tệp')),
+        h('div', { class: 'small muted' }, Object.entries(perClass).map(([k, v]) => `${k}: ${v}`).join(' · ')));
+    } catch (e) {
+      plog('✖ ' + e.message);
+      photoResult.replaceChildren(h('div', { class: 'notice red' }, 'Không tạo được gói ảnh: ' + e.message));
+    } finally { busy = false; btnPhotos.disabled = btnBasic.disabled = btnImg.disabled = false; }
+  }
+
+  function slug(s) {
+    return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9-]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
   async function loadTemplateInfo() {
