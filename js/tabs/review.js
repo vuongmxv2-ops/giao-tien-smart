@@ -74,6 +74,7 @@ export async function render(el, app) {
         praise ? h('span', { class: 'badge', style: 'background:#ef6c00;color:#fff' }, '🌟 Tuyên dương') : h('span', { class: 'badge red' }, 'Vi phạm'),
         h('b', { style: 'font-size:16px' }, `${i.class_name} – ${i.type_name}`), badge(i.status),
         i.dup_flag ? h('span', { class: 'badge yellow' }, '⚠ Nghi trùng với ' + i.duplicate_of) : '', i.time_source === 'OFFLINE' ? h('span', { class: 'badge' }, 'Gửi sau khi mất mạng') : '',
+        i.time_source === 'LOGBOOK' ? h('span', { class: 'badge', style: 'background:#eef2ff;color:#4338ca' }, '📒 Theo sổ trực') : '',
         i.time_source === 'ADJUSTED' ? h('span', { class: 'badge yellow' }, 'Giờ đã điều chỉnh') : ''),
       thumbs,
       canTrim ? h('div', { class: 'actions', style: 'margin:-4px 0 8px' }, h('button', { class: 'btn sm', onclick: () => trimImages(i, slots) }, `✂ Lược bớt ảnh (${i.evidence.length} ảnh)`)) : '',

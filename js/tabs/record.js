@@ -92,7 +92,19 @@ export async function render(el, app, params) {
   const lblClass = h('span'), lblStudent = h('span'), lblType = h('span');
   const tabTru = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('TRU') }, '⚠️ Vi phạm');
   const tabCong = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('CONG') }, '🌟 Tuyên dương');
+  const tabSo = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('SO') }, '📒 Sổ trực');
+  const logBox = h('div', { hidden: true });
+  let logReady = false;
   function setMode(m) {
+    // Chế độ "Sổ trực": thay biểu mẫu một lỗi bằng biểu mẫu nhiều dòng
+    tabSo.classList.toggle('on', m === 'SO');
+    if (formCard) formCard.hidden = m === 'SO';
+    logBox.hidden = m !== 'SO';
+    if (m === 'SO') {
+      tabTru.classList.remove('on'); tabCong.classList.remove('on');
+      if (!logReady) { logReady = true; import('./logbook.js').then(x => x.renderLogbook(logBox, app, { recordable, campuses })); }
+      return;
+    }
     mode = m;
     const cong = m === 'CONG';
     tabTru.classList.toggle('on', !cong); tabCong.classList.toggle('on', cong);
@@ -113,8 +125,8 @@ export async function render(el, app, params) {
     } }, 'Điều chỉnh') : '', fTime);
   const submitBtn = h('button', { class: 'btn green block', type: 'button', style: 'min-height:52px;font-size:17px', onclick: submit }, '📤 GỬI GHI NHẬN');
 
-  el.append(h('div', { class: 'card' },
-    h('div', { class: 'seg mode-seg' }, tabTru, tabCong),
+  el.append(h('div', { class: 'seg mode-seg' }, tabTru, tabCong, tabSo), logBox);
+  const formCard = h('div', { class: 'card' },
     hero, camInput, libInput,
     h('div', { class: 'actions', style: 'margin:10px 0' }, h('button', { class: 'btn', type: 'button', onclick: () => libInput.click() }, '🖼️ Chọn ảnh từ thư viện (nhiều ảnh)')),
     thumbs,
@@ -122,8 +134,9 @@ export async function render(el, app, params) {
     field(lblStudent, fStudent),
     field(lblType, fType, pts), field('Ghi chú', fNote), timeBox,
     h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Người ghi nhận: ', h('b', {}, u.full_name), ' – ', u.role_label),
-    submitBtn, status));
-  setMode(mode);
+    submitBtn, status);
+  el.append(formCard);
+  setMode(params.mode === 'so-truc' ? 'SO' : mode);
 
   // Hộp thư đi
   const outCard = h('div', { class: 'card' }, h('h2', {}, '📮 Trạng thái gửi trên máy này'));
