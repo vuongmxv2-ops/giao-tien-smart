@@ -1,4 +1,4 @@
-import { call, setToken, hasToken, setAuthLostHandler, isMock } from './api.js';
+import { call, callSWR, clearSWR, setToken, hasToken, setAuthLostHandler, isMock } from './api.js';
 import { $, h, toast, loading, errorBox, modal } from './ui.js';
 import * as outbox from './queue.js';
 
@@ -23,13 +23,13 @@ export const TABS = [
 export const app = {
   boot: null, user: null, params: {},
   can(p) { const u = this.user; if (!u) return false; if (u.perms.includes('*')) return true; return (Array.isArray(p) ? p : [p]).some(x => u.perms.includes(x)); },
-  call,
+  call, callSWR,
   nav(id, params = {}) { this.params = params; if (location.hash !== '#/' + id) location.hash = '#/' + id; else render(); },
   classById(id) { return this.boot.classes.find(c => c.class_id === id); },
   typeById(id) { return this.boot.types.find(t => t.type_id === id); },
   campusName(id) { const c = this.boot.campuses.find(x => x.campus_id === id); return c ? c.name : ''; },
   weekLabel(w) { return w ? `Tuần ${w.week_no} (${w.start_date.substr(8, 2)}/${w.start_date.substr(5, 2)} – ${w.end_date.substr(8, 2)}/${w.end_date.substr(5, 2)})` : ''; },
-  async reloadBoot() { this.boot = await call('app.bootstrap'); this.user = this.boot.user; return this.boot; },
+  async reloadBoot() { this.boot = await call('app.bootstrap'); this.user = this.boot.user; saveBoot(this.boot); return this.boot; },
   visibleTabs() { return TABS.filter(t => this.can(t.perms)); },
   /** Các nhóm thi đua (ví dụ: Lớp chọn, Đại trà) theo thứ tự xuất hiện trong danh sách lớp. */
   groups() { return [...new Set((this.boot?.classes || []).map(c => c.comp_group).filter(Boolean))]; }
@@ -38,16 +38,56 @@ window.GTS_APP = app;
 
 const root = $('#app');
 
+/* Dữ liệu khởi động (lớp, lỗi, tuần…) được lưu trên máy để lần sau mở ứng dụng hiện ngay, rồi cập nhật ngầm từ máy chủ. */
+const BOOT_KEY = 'gts_boot';
+function saveBoot(b) { try { localStorage.setItem(BOOT_KEY, JSON.stringify({ at: Date.now(), boot: b })); } catch { /* bỏ qua */ } }
+function loadBoot() { try { const x = JSON.parse(localStorage.getItem(BOOT_KEY) || 'null'); return x && Date.now() - x.at < 7 * 864e5 ? x.boot : null; } catch { return null; } }
+function clearBoot() { try { localStorage.removeItem(BOOT_KEY); } catch { /* bỏ qua */ } clearSWR(); }
+
 async function start() {
-  setAuthLostHandler(() => { toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warn'); showLogin(); });
-  if ('serviceWorker' in navigator && !isMock() && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  setAuthLostHandler(() => { clearBoot(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warn'); showLogin(); });
+  if ('serviceWorker' in navigator && !isMock() && location.protocol === 'https:') {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Có phiên bản giao diện mới: mời tải lại (không tự tải lại để không mất dữ liệu đang nhập)
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) showUpdateBar(); });
+  }
   if (!hasToken()) return showLogin();
+  const cached = loadBoot();
+  if (cached) {
+    // Mở ngay bằng dữ liệu đã lưu; quyền thật vẫn do máy chủ kiểm tra ở mỗi thao tác
+    app.boot = cached; app.user = cached.user;
+    renderShell();
+    const before = JSON.stringify(cached.user);
+    app.reloadBoot().then(b => {
+      if (JSON.stringify(b.user) !== before) renderShell(); // đổi quyền/phạm vi → dựng lại menu
+      else refreshTopbar();
+    }).catch(e => { if (e.code !== 'AUTH_REQUIRED') toast('Đang dùng dữ liệu đã lưu trên máy – chưa cập nhật được từ máy chủ.', 'warn', 4000); });
+    return;
+  }
   loading(root, 'Đang kết nối máy chủ…');
   try { await app.reloadBoot(); renderShell(); }
   catch (e) {
     if (e.code === 'AUTH_REQUIRED') return;
     errorBox(root, e, () => start());
   }
+}
+
+function showUpdateBar() {
+  if (document.querySelector('.update-bar')) return;
+  document.body.append(h('div', { class: 'update-bar' }, '✨ Đã có phiên bản mới của ứng dụng.',
+    h('button', { class: 'btn sm primary', onclick: () => location.reload() }, 'Cập nhật ngay')));
+}
+
+function refreshTopbar() {
+  const y = document.querySelector('.topbar .year'), b = app.boot;
+  if (y) y.textContent = 'Năm học ' + (b.year ? b.year.name : '—') + (b.current_week ? ' · ' + app.weekLabel(b.current_week) : '');
+}
+
+/** Tải sẵn mã các trang khi máy rảnh để chuyển trang không phải chờ. */
+function prefetchTabs() {
+  const go = () => app.visibleTabs().forEach(t => import(`./tabs/${t.mod}.js`).catch(() => {}));
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 4000 }); else setTimeout(go, 1500);
 }
 
 function showLogin(message) {
@@ -93,7 +133,7 @@ async function doLogin(idToken, msg) {
 
 export async function logout() {
   try { await call('auth.logout'); } catch { /* bỏ qua */ }
-  setToken('');
+  setToken(''); clearBoot();
   if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   showLogin();
 }
@@ -123,6 +163,7 @@ function renderShell() {
   window.onhashchange = render;
   if (!location.hash) location.hash = '#/' + (app.visibleTabs()[0]?.id || 'tong-quan');
   render();
+  prefetchTabs();
   outbox.cleanup().catch(() => {});
   if (navigator.onLine) outbox.sendAll().catch(() => {});
 }

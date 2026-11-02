@@ -1,4 +1,4 @@
-import { h, options, field, loading, errorBox, table, fmtDate, wdShort } from '../ui.js';
+import { h, options, field, loading, errorBox, table, fmtDate, wdShort, toast } from '../ui.js';
 import { chart } from '../charts.js';
 
 /** TAB 1 – TỔNG QUAN */
@@ -18,17 +18,19 @@ export async function render(el, app) {
   Object.values(f).forEach(s => s.addEventListener('change', () => { sync(); load(); }));
   sync();
 
+  let shown = false, seq = 0;
   async function load() {
+    const my = ++seq; shown = false;
     loading(body);
     try {
-      const d = await app.call('dashboard.get', { range: f.range.value, week_id: f.week.value, semester: f.semester.value, campus_id: f.campus.value, grade: f.grade.value, date: b.today });
-      draw(d);
-    } catch (e) { errorBox(body, e, load); }
+      await app.callSWR('dashboard.get', { range: f.range.value, week_id: f.week.value, semester: f.semester.value, campus_id: f.campus.value, grade: f.grade.value, date: b.today },
+        (d, stale) => { if (my !== seq) return; shown = true; draw(d, stale); });
+    } catch (e) { if (my !== seq) return; if (shown) toast('Chưa cập nhật được số liệu mới: ' + e.message, 'warn'); else errorBox(body, e, load); }
   }
 
-  function draw(d) {
+  function draw(d, stale) {
     body.replaceChildren();
-    body.append(h('div', { class: 'small muted', style: 'margin-bottom:8px' }, `Dữ liệu từ ${fmtDate(d.range.from)} đến ${fmtDate(d.range.to)} – lấy trực tiếp từ cơ sở dữ liệu.`));
+    body.append(h('div', { class: 'small muted', style: 'margin-bottom:8px' }, stale ? h('span', {}, h('span', { class: 'spinner sm' }), ' Đang cập nhật số liệu mới nhất…') : `Dữ liệu từ ${fmtDate(d.range.from)} đến ${fmtDate(d.range.to)} – lấy trực tiếp từ cơ sở dữ liệu.`));
     const stat = (v, l, c = '') => h('div', { class: 'stat ' + c }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l));
     body.append(h('div', { class: 'grid k4', style: 'margin-bottom:14px' },
       stat(d.total_classes, 'Tổng số lớp'), stat(d.checked_today, 'Lớp đã kiểm tra hôm nay', 'green'),

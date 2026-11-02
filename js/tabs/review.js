@@ -1,5 +1,6 @@
 import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, signed, askReason, modal, b64ToBlob, nowLocalInput } from '../ui.js';
 import { viewEvidence } from './record.js';
+import { thumbUrl } from '../thumbs.js';
 
 /** TAB 5 – DUYỆT MINH CHỨNG: DUYỆT – SỬA – BÁC BỎ – GỘP TRÙNG – YÊU CẦU BỔ SUNG */
 export async function render(el, app) {
@@ -92,8 +93,7 @@ export async function render(el, app) {
 
   async function loadThumb(id, slot) {
     try {
-      const r = await app.call('evidence.get', { evidence_id: id, size: 'thumb' });
-      slot.replaceChildren(h('img', { src: URL.createObjectURL(b64ToBlob(r.base64, r.mime)), alt: 'Ảnh minh chứng' }));
+      slot.replaceChildren(h('img', { src: await thumbUrl(id), alt: 'Ảnh minh chứng' }));
     } catch (e) { slot.replaceChildren('Lỗi ảnh'); slot.title = e.message; }
   }
 

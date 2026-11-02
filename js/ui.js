@@ -100,7 +100,31 @@ export const STATUS = {
 };
 export function badge(status) { const s = STATUS[status] || [status, '']; return h('span', { class: 'badge ' + s[1] }, s[0]); }
 
-export function loading(el, text = 'Đang tải dữ liệu…') { el.replaceChildren(h('div', { class: 'loading' }, h('span', { class: 'spinner' }), ' ', text)); }
+/** Khung chờ dạng "xương" (skeleton) – cảm giác tải nhanh hơn vòng quay. */
+export function loading(el, text = 'Đang tải dữ liệu…') {
+  el.replaceChildren(h('div', { class: 'skel-wrap', 'aria-busy': 'true', 'aria-label': text },
+    h('div', { class: 'skel-row' }, h('div', { class: 'skel' }), h('div', { class: 'skel' }), h('div', { class: 'skel' }), h('div', { class: 'skel' })),
+    h('div', { class: 'skel skel-card' }), h('div', { class: 'skel skel-line' }), h('div', { class: 'skel skel-line short' }),
+    h('div', { class: 'loading small' }, h('span', { class: 'spinner sm' }), ' ', text)));
+}
+
+/** Thư viện nặng chỉ tải khi cần (không chặn lúc mở ứng dụng). */
+const LIBS = {
+  JSZip: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  XLSX: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  Chart: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
+};
+const libLoads = {};
+export function lib(name) {
+  if (window[name]) return Promise.resolve(window[name]);
+  return libLoads[name] || (libLoads[name] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = LIBS[name]; s.async = true;
+    s.onload = () => window[name] ? resolve(window[name]) : reject(new Error('Không tải được thư viện ' + name));
+    s.onerror = () => { delete libLoads[name]; reject(new Error('Không tải được thư viện ' + name + ' (kiểm tra mạng rồi thử lại).')); };
+    document.head.append(s);
+  }));
+}
 export function errorBox(el, err, retry) {
   el.replaceChildren(h('div', { class: 'notice red' }, err.message || String(err), ' ', retry ? h('button', { class: 'btn sm', onclick: retry }, 'Thử lại') : ''));
 }
@@ -160,7 +184,7 @@ export function uid() {
 
 /** Đọc tệp Excel/CSV bằng SheetJS, trả về mảng đối tượng theo dòng tiêu đề. */
 export async function readSheetFile(file) {
-  if (!window.XLSX) throw new Error('Chưa tải được thư viện đọc Excel (kiểm tra mạng).');
+  await lib('XLSX');
   const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
   return window.XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });

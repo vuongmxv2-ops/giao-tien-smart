@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, table, download, blobToB64, b64ToBlob, fmtDateTime, devNote, fmtDate } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, table, download, blobToB64, b64ToBlob, fmtDateTime, devNote, fmtDate, lib } from '../ui.js';
 import { buildWeekWorkbook, whoLabel, namesEnabled, captionLines } from '../xlsx/report.js';
 import { annotateImage } from '../xlsx/collage.js';
 import { decode } from '../image.js';
@@ -80,7 +80,7 @@ export async function render(el, app, params) {
   let busy = false;
   async function run(kind) {
     if (busy) return;
-    if (!window.JSZip) return toast('Chưa tải được thư viện JSZip. Kiểm tra mạng rồi tải lại trang.', 'err');
+    try { await lib('JSZip'); } catch (e) { return toast(e.message, 'err'); }
     busy = true; btnBasic.disabled = btnImg.disabled = true;
     logBox.replaceChildren(); result.replaceChildren(); setProg(0.02);
     const withImages = kind === 'COMMENT_IMAGES';
@@ -114,7 +114,7 @@ export async function render(el, app, params) {
 
   async function runPhotos() {
     if (busy) return;
-    if (!window.JSZip) return toast('Chưa tải được thư viện JSZip. Kiểm tra mạng rồi tải lại trang.', 'err');
+    try { await lib('JSZip'); } catch (e) { return toast(e.message, 'err'); }
     busy = true; btnPhotos.disabled = btnBasic.disabled = btnImg.disabled = true;
     photoLog.replaceChildren(); photoResult.replaceChildren();
     const plog = m => { photoLog.append(h('div', {}, '• ' + m)); photoLog.scrollTop = 1e9; };

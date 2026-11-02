@@ -1,11 +1,17 @@
 /** Biểu đồ (Chart.js). Nếu thư viện chưa tải được, hiển thị bảng số liệu thay thế. */
-import { h, table } from './ui.js';
+import { h, table, lib } from './ui.js';
 
 export const COLORS = ['#1565c0', '#2e7d32', '#f9a825', '#c62828', '#6a1b9a', '#00838f', '#ef6c00', '#5d4037', '#455a64', '#ad1457'];
 
-export function chart(container, { type = 'bar', labels, datasets, horizontal = false, height = 260 }) {
-  const box = h('div', { class: 'chart-box', style: `height:${height}px` });
+export function chart(container, opts) {
+  const box = h('div', { class: 'chart-box', style: `height:${opts.height || 260}px` }, h('div', { class: 'skel', style: 'height:100%' }));
   container.append(box);
+  // Thư viện biểu đồ chỉ tải khi có biểu đồ cần vẽ
+  lib('Chart').catch(() => null).then(() => { box.replaceChildren(); draw(box, opts); });
+  return null;
+}
+
+function draw(box, { type = 'bar', labels, datasets, horizontal = false }) {
   if (!window.Chart) {
     box.style.height = 'auto';
     box.append(h('div', { class: 'small muted' }, 'Không tải được thư viện biểu đồ – hiển thị dạng bảng.'),

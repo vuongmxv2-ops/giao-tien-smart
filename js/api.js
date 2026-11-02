@@ -24,6 +24,28 @@ async function mockTransport(body) {
   return text;
 }
 
+/**
+ * Hiện ngay kết quả lần trước (nếu có) rồi gọi máy chủ và hiện kết quả mới.
+ * onData(data, stale): stale = true khi là dữ liệu cũ lưu trên máy. Chỉ dùng cho số liệu tổng hợp (không chứa thông tin học sinh).
+ */
+const SWR_KEY = 'gts_swr';
+function swrStore() { try { return JSON.parse(localStorage.getItem(SWR_KEY) || '{}'); } catch { return {}; } }
+export async function callSWR(action, payload, onData) {
+  const key = action + ':' + JSON.stringify(payload);
+  const old = swrStore()[key];
+  if (old) onData(old.d, true);
+  const d = await call(action, payload);
+  try {
+    const s = swrStore(); s[key] = { d, at: Date.now() };
+    const keys = Object.keys(s).sort((a, b) => s[b].at - s[a].at);
+    keys.slice(20).forEach(k => delete s[k]); // giữ 20 kết quả gần nhất
+    localStorage.setItem(SWR_KEY, JSON.stringify(s));
+  } catch { /* đầy bộ nhớ: bỏ qua */ }
+  onData(d, false);
+  return d;
+}
+export function clearSWR() { try { localStorage.removeItem(SWR_KEY); } catch { /* bỏ qua */ } }
+
 export async function call(action, payload = {}, opts = {}) {
   const body = JSON.stringify({ action, token, payload });
   let text;

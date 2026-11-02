@@ -16,8 +16,9 @@ export async function render(el, app, params) {
 
   async function load() {
     loading(body);
-    try { data = await app.call('score.week', { week_id: fWeek.value, comp_group: fGroup.value, campus_id: fCampus.value, grade: fGrade.value }); draw(); }
-    catch (e) { errorBox(body, e, load); }
+    let shown = false;
+    try { await app.callSWR('score.week', { week_id: fWeek.value, comp_group: fGroup.value, campus_id: fCampus.value, grade: fGrade.value }, d => { data = d; shown = true; draw(); }); }
+    catch (e) { if (!shown) errorBox(body, e, load); }
   }
 
   function draw() {
