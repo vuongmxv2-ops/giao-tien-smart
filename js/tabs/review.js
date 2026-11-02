@@ -48,10 +48,12 @@ export async function render(el, app) {
   }
 
   function card(i) {
+    const slots = new Map();
     const thumbs = h('div', { class: 'thumbs' }, i.evidence.map(ev => {
       const t = h('div', { class: 'thumb', title: 'Xem ảnh lớn', onclick: () => viewEvidence(app, i) }, h('span', { class: 'spinner' }));
-      loadThumb(ev.evidence_id, t); return t;
+      slots.set(ev.evidence_id, t); loadThumb(ev.evidence_id, t); return t;
     }));
+    const canTrim = i.evidence.length > 1 && ['CHO_DUYET', 'YEU_CAU_BO_SUNG', 'DA_DUYET'].includes(i.status);
     const pts = h('input', { type: 'number', step: '0.5', value: i.approved_points !== '' ? i.approved_points : i.proposed_points, style: 'max-width:120px' });
     const cb = h('input', { type: 'checkbox', checked: selected.has(i.incident_id), onchange: e => e.target.checked ? selected.add(i.incident_id) : selected.delete(i.incident_id) });
     const own = i.submitted_by === app.user.user_id && app.user.role !== 'ADMIN';
@@ -73,6 +75,7 @@ export async function render(el, app) {
         i.dup_flag ? h('span', { class: 'badge yellow' }, '⚠ Nghi trùng với ' + i.duplicate_of) : '', i.time_source === 'OFFLINE' ? h('span', { class: 'badge' }, 'Gửi sau khi mất mạng') : '',
         i.time_source === 'ADJUSTED' ? h('span', { class: 'badge yellow' }, 'Giờ đã điều chỉnh') : ''),
       thumbs,
+      canTrim ? h('div', { class: 'actions', style: 'margin:-4px 0 8px' }, h('button', { class: 'btn sm', onclick: () => trimImages(i, slots) }, `✂ Lược bớt ảnh (${i.evidence.length} ảnh)`)) : '',
       h('div', { class: 'meta' },
         h('b', {}, 'Lớp'), h('span', {}, i.class_name + ' · ' + app.campusName(i.campus_id)),
         h('b', {}, 'Học sinh'), h('span', {}, i.student_name || '—'),
@@ -139,6 +142,32 @@ export async function render(el, app) {
         if (!Object.keys(changes).length) { toast('Chưa có thay đổi.', 'warn'); return false; }
         await app.call('review.edit', { incident_id: i.incident_id, changes, reason: fr.value });
         toast('Đã lưu và ghi nhật ký', 'ok'); load();
+      } }] });
+  }
+
+  /** Chọn ảnh thừa/trùng để bỏ khỏi bản ghi. Ảnh không bị xóa trên Drive, chỉ không còn tính là minh chứng. */
+  function trimImages(i, slots) {
+    const picks = i.evidence.map((ev, k) => {
+      const src = slots.get(ev.evidence_id)?.querySelector('img')?.src;
+      const cb = h('input', { type: 'checkbox', value: ev.evidence_id });
+      const tile = h('label', { class: 'trim-tile' }, src ? h('img', { src, alt: 'Ảnh ' + (k + 1) }) : h('div', { class: 'small muted' }, ev.filename || ev.evidence_id),
+        h('div', { class: 'trim-cap' }, cb, ` Bỏ ảnh ${k + 1}`));
+      cb.addEventListener('change', () => { tile.classList.toggle('off', cb.checked); count(); });
+      return { cb, tile };
+    });
+    const info = h('div', { class: 'small muted' });
+    const fr = h('input', { type: 'text', value: 'Ảnh trùng / chụp thừa' });
+    const count = () => { const n = picks.filter(p => p.cb.checked).length; info.textContent = n ? `Bỏ ${n} ảnh, giữ lại ${i.evidence.length - n} ảnh.` : 'Đánh dấu các ảnh muốn bỏ (giữ lại ít nhất 1 ảnh).'; };
+    count();
+    modal({ title: `Lược bớt ảnh – ${i.class_name} – ${i.type_name}`, wide: true, body: h('div', {},
+      h('div', { class: 'trim-grid' }, picks.map(p => p.tile)), info, field('Lý do', fr),
+      h('div', { class: 'small muted' }, 'Ảnh bị bỏ không bị xóa trên Google Drive, chỉ không hiện khi duyệt và khi xuất báo cáo. Thao tác được ghi nhật ký.')),
+      actions: [{ label: 'Hủy' }, { label: 'Bỏ ảnh đã chọn', kind: 'red', onClick: async () => {
+        const ids = picks.filter(p => p.cb.checked).map(p => p.cb.value);
+        if (!ids.length) { toast('Chưa chọn ảnh nào.', 'warn'); return false; }
+        if (ids.length >= i.evidence.length) { toast('Phải giữ lại ít nhất 1 ảnh.', 'err'); return false; }
+        const r = await app.call('review.removeEvidence', { incident_id: i.incident_id, evidence_ids: ids, reason: fr.value });
+        toast(`Đã bỏ ${r.removed} ảnh, còn ${r.left} ảnh`, 'ok'); load();
       } }] });
   }
 
