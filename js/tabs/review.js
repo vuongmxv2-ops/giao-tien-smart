@@ -8,29 +8,43 @@ export async function render(el, app) {
   const fWeek = h('select', {}, options(b.weeks, { value: 'week_id', label: w => app.weekLabel(w) + (w.status === 'LOCKED' ? ' 🔒' : ''), empty: 'Tất cả tuần' }));
   const fCampus = h('select', {}, options(b.campuses, { value: 'campus_id', label: 'name', empty: 'Toàn trường' }));
   const fClass = h('select', {}, options(b.classes, { value: 'class_id', label: 'name', empty: 'Tất cả lớp' }));
-  el.append(h('div', { class: 'filters' }, field('Trạng thái', fStatus), field('Tuần', fWeek), field('Cơ sở', fCampus), field('Lớp', fClass)));
+  // Mục: tất cả / vi phạm / tuyên dương (lọc theo loại cộng/trừ của nội dung)
+  let kindFilter = '';
+  const kSeg = h('div', { class: 'seg mode-seg kind-seg' });
+  const kBtns = [['', 'Tất cả'], ['TRU', '⚠️ Vi phạm'], ['CONG', '🌟 Tuyên dương']].map(([k, l]) => {
+    const btn = h('button', { type: 'button', onclick: () => { kindFilter = k; draw(total); } }, l); btn.dataset.k = k; kSeg.append(btn); return btn;
+  });
+  el.append(kSeg, h('div', { class: 'filters' }, field('Trạng thái', fStatus), field('Tuần', fWeek), field('Cơ sở', fCampus), field('Lớp', fClass)));
   const bar = h('div', { class: 'actions', style: 'margin-bottom:10px' });
   const body = h('div');
   el.append(bar, body);
   [fStatus, fWeek, fCampus, fClass].forEach(x => x.addEventListener('change', load));
-  let items = [], selected = new Set();
+  let all = [], items = [], selected = new Set(), total = 0;
+  const isPraise = i => { const t = app.typeById(i.type_id); if (t) return t.kind === 'CONG'; const p = i.approved_points !== '' ? i.approved_points : i.proposed_points; return Number(p) > 0; };
 
   async function load() {
     loading(body); selected.clear();
     try {
       const st = fStatus.value === 'pending' ? ['CHO_DUYET', 'YEU_CAU_BO_SUNG'] : fStatus.value;
       const r = await app.call('incident.list', { status: st, week_id: fWeek.value, campus_id: fCampus.value, class_id: fClass.value, limit: 100 });
-      items = r.items; draw(r.total);
+      all = r.items; total = r.total; draw();
     } catch (e) { errorBox(body, e, load); }
   }
 
-  function draw(total) {
+  function draw() {
+    const nCong = all.filter(isPraise).length, nTru = all.length - nCong;
+    kBtns.forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.k === kindFilter);
+      btn.textContent = { '': `Tất cả (${all.length})`, TRU: `⚠️ Vi phạm (${nTru})`, CONG: `🌟 Tuyên dương (${nCong})` }[btn.dataset.k];
+    });
+    items = kindFilter ? all.filter(i => isPraise(i) === (kindFilter === 'CONG')) : all;
+    [...selected].forEach(id => { if (!items.some(i => i.incident_id === id)) selected.delete(id); });
     bar.replaceChildren(h('span', { class: 'muted' }, `${items.length}/${total} bản ghi`));
     if (fStatus.value !== 'DA_DUYET' && fStatus.value !== 'BAC_BO') {
-      bar.append(h('button', { class: 'btn sm', onclick: () => { items.filter(i => i.status === 'CHO_DUYET' && i.proposed_points !== '').forEach(i => selected.add(i.incident_id)); draw(total); } }, 'Chọn tất cả có điểm dự kiến'),
+      bar.append(h('button', { class: 'btn sm', onclick: () => { items.filter(i => i.status === 'CHO_DUYET' && i.proposed_points !== '').forEach(i => selected.add(i.incident_id)); draw(); } }, 'Chọn tất cả có điểm dự kiến'),
         h('button', { class: 'btn sm green', onclick: approveSelected }, 'Duyệt các bản đã chọn'));
     }
-    body.replaceChildren(...(items.length ? items.map(card) : [h('div', { class: 'empty card' }, 'Không có bản ghi nào cần xử lý. 🎉')]));
+    body.replaceChildren(...(items.length ? items.map(card) : [h('div', { class: 'empty card' }, kindFilter === 'CONG' ? 'Không có bản ghi tuyên dương nào.' : 'Không có bản ghi nào cần xử lý. 🎉')]));
   }
 
   function card(i) {
@@ -51,8 +65,11 @@ export async function render(el, app) {
       acts.append(h('button', { class: 'btn red', onclick: () => act('review.reject', i, i.status === 'DA_DUYET' ? 'Hủy duyệt / bác bỏ (duyệt nhầm)' : 'Bác bỏ bản ghi', 'Lý do bác bỏ') }, '✖ BÁC BỎ'));
       acts.append(h('button', { class: 'btn', onclick: () => merge(i) }, '⧉ GỘP TRÙNG'));
     }
-    return h('div', { class: 'review-card' + (i.dup_flag ? ' dup' : '') },
-      h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, i.status === 'CHO_DUYET' ? cb : '', h('b', { style: 'font-size:16px' }, `${i.class_name} – ${i.type_name}`), badge(i.status),
+    const praise = isPraise(i);
+    return h('div', { class: 'review-card' + (i.dup_flag ? ' dup' : '') + (praise ? ' praise' : '') },
+      h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, i.status === 'CHO_DUYET' ? cb : '',
+        praise ? h('span', { class: 'badge', style: 'background:#ef6c00;color:#fff' }, '🌟 Tuyên dương') : h('span', { class: 'badge red' }, 'Vi phạm'),
+        h('b', { style: 'font-size:16px' }, `${i.class_name} – ${i.type_name}`), badge(i.status),
         i.dup_flag ? h('span', { class: 'badge yellow' }, '⚠ Nghi trùng với ' + i.duplicate_of) : '', i.time_source === 'OFFLINE' ? h('span', { class: 'badge' }, 'Gửi sau khi mất mạng') : '',
         i.time_source === 'ADJUSTED' ? h('span', { class: 'badge yellow' }, 'Giờ đã điều chỉnh') : ''),
       thumbs,
@@ -104,7 +121,7 @@ export async function render(el, app) {
 
   function edit(i) {
     const fc = h('select', {}, options(b.classes, { value: 'class_id', label: 'name', selected: i.class_id_at_time }));
-    const ft = h('select', {}, options(b.types, { value: 'type_id', label: 'name', selected: i.type_id }));
+    const ft = h('select', {}, options(b.types, { value: 'type_id', label: t => (t.kind === 'CONG' ? '🌟 ' : '') + t.name, selected: i.type_id }));
     const ftime = h('input', { type: 'datetime-local', value: String(i.occurred_at).substr(0, 16) || nowLocalInput() });
     const fp = h('input', { type: 'number', step: '0.5', value: i.approved_points !== '' ? i.approved_points : '' , placeholder: 'Để trống = theo nội quy' });
     const fn = h('textarea', {}, i.note || '');

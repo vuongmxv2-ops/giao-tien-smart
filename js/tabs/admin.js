@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, table, badge, fmtDate, fmtDateTime, askReason, modal, readSheetFile, mapColumns, devNote, confirmBox } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, table, badge, fmtDate, fmtDateTime, askReason, modal, readSheetFile, mapColumns, devNote, confirmBox, fold, searchSelect } from '../ui.js';
 import { tieLabel } from './scores.js';
 
 const ROLES = [{ value: 'ADMIN', label: 'Tổng phụ trách Đội (ADMIN)' }, { value: 'SCHOOL_LEADER', label: 'Ban giám hiệu' }, { value: 'YOUTH_COMMAND', label: 'Ban chỉ huy Liên đội' },
@@ -49,17 +49,66 @@ export async function render(el, app) {
   }
 
   function typesSection(body) {
-    const draw = () => body.replaceChildren(h('div', { class: 'actions', style: 'margin-bottom:8px' }, h('button', { class: 'btn sm primary', onclick: () => editType() }, '＋ Thêm loại lỗi')),
-      table([{ label: 'Mã', key: 'code' }, { label: 'Tên', key: 'name' }, { label: 'Loại', render: t => t.kind === 'CONG' ? h('span', { class: 'badge green' }, 'Cộng') : h('span', { class: 'badge red' }, 'Trừ') },
-        { label: 'Điểm hiện hành', render: t => t.points == null ? h('span', { class: 'neg' }, 'Chưa có') : t.points, num: true }], app.boot.types, { onRow: editType }));
-    function editType(t = {}) {
-      const code = h('input', { type: 'text', value: t.code || '', disabled: !!t.type_id }), name = h('input', { type: 'text', value: t.name || '' });
-      const kind = h('select', {}, options([{ value: 'TRU', label: 'Trừ điểm' }, { value: 'CONG', label: 'Cộng điểm' }], { selected: t.kind }));
-      const status = h('select', {}, options([{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngừng dùng' }]));
-      modal({ title: t.type_id ? 'Sửa loại lỗi' : 'Thêm loại lỗi', body: h('div', {}, field('Mã lỗi', code), field('Tên lỗi', name), field('Loại', kind), field('Trạng thái', status)),
-        actions: [{ label: 'Hủy' }, { label: 'Lưu', kind: 'primary', onClick: async () => { await app.call('type.save', { type_id: t.type_id, code: code.value, name: name.value, kind: kind.value, status: status.value }); await app.reloadBoot(); draw(); toast('Đã lưu', 'ok'); } }] });
+    // Chọn nhanh: ô tìm (không dấu cũng được) + lọc Trừ/Cộng/Chưa có điểm + lọc nhóm
+    let q = '', kf = '';
+    const search = h('input', { type: 'search', placeholder: '🔎 Tìm nhanh theo tên hoặc mã, ví dụ: so vin, giai nhat' });
+    const groupSel = h('select');
+    const seg = h('div', { class: 'seg' });
+    const kinds = [['', 'Tất cả'], ['TRU', 'Trừ'], ['CONG', 'Cộng'], ['NONE', 'Chưa có điểm']];
+    const segBtns = kinds.map(([k, l]) => { const bt = h('button', { type: 'button', onclick: () => { kf = k; drawList(); } }, l); bt.dataset.k = k; seg.append(bt); return bt; });
+    const listBox = h('div');
+    search.addEventListener('input', () => { q = search.value; drawList(); });
+    groupSel.addEventListener('change', drawList);
+    body.append(h('div', { class: 'type-tools' }, search, h('button', { class: 'btn sm primary', onclick: () => editType() }, '＋ Thêm loại lỗi')),
+      h('div', { class: 'type-tools' }, seg, groupSel), listBox,
+      h('div', { class: 'small muted' }, 'Bấm vào một dòng để sửa tên, đổi điểm cộng/trừ hoặc ngừng dùng. Đổi điểm tạo phiên bản quy định mới từ ngày hiệu lực; các bản ghi đã duyệt giữ nguyên điểm cũ.'));
+    function drawList() {
+      const types = app.boot.types;
+      const groups = [...new Set(types.map(t => t.group_name).filter(Boolean))];
+      const gv = groupSel.value;
+      groupSel.replaceChildren(...options(groups.map(g => ({ value: g, label: g })), { empty: 'Tất cả nhóm', selected: gv }));
+      segBtns.forEach(bt => bt.classList.toggle('on', bt.dataset.k === kf));
+      const words = fold(q).trim().split(/\s+/).filter(Boolean);
+      const rows = types.filter(t => (!kf || (kf === 'NONE' ? t.points == null : t.kind === kf)) && (!groupSel.value || t.group_name === groupSel.value)
+        && words.every(w => fold(t.name + ' ' + t.code + ' ' + (t.group_name || '')).includes(w)));
+      listBox.replaceChildren(h('div', { class: 'small muted', style: 'margin-bottom:4px' }, `${rows.length}/${types.length} loại`),
+        table([{ label: 'Mã', key: 'code' }, { label: 'Tên', key: 'name' }, { label: 'Nhóm', key: 'group_name' },
+          { label: 'Loại', render: t => t.kind === 'CONG' ? h('span', { class: 'badge green' }, 'Cộng') : h('span', { class: 'badge red' }, 'Trừ') },
+          { label: 'Điểm hiện hành', render: t => t.points == null ? h('span', { class: 'neg' }, 'Chưa có') : signedPts(t.points), num: true },
+          { label: '', render: t => h('button', { class: 'btn sm', onclick: e => { e.stopPropagation(); editType(t); } }, '✎ Sửa') }], rows, { onRow: editType, empty: 'Không tìm thấy loại nào.' }));
     }
-    draw();
+    const signedPts = p => (p > 0 ? '+' : '') + p;
+    function editType(t = {}) {
+      const isNew = !t.type_id;
+      const code = h('input', { type: 'text', value: t.code || '', disabled: !isNew, placeholder: 'Ví dụ: SO_VIN' }), name = h('input', { type: 'text', value: t.name || '' });
+      const kind = h('select', {}, options([{ value: 'TRU', label: 'Trừ điểm (vi phạm)' }, { value: 'CONG', label: 'Cộng điểm (tuyên dương)' }], { selected: t.kind }));
+      const group = h('input', { type: 'text', value: t.group_name || '', list: 'type-groups' });
+      const groupList = h('datalist', { id: 'type-groups' }, [...new Set(app.boot.types.map(x => x.group_name).filter(Boolean))].map(g => h('option', { value: g })));
+      const curPts = t.points == null ? '' : Math.abs(t.points);
+      const pts = h('input', { type: 'number', step: '0.5', min: 0, value: curPts, placeholder: 'Để trống = người duyệt nhập điểm' });
+      const from = h('input', { type: 'date', value: app.boot.today || new Date().toISOString().slice(0, 10) });
+      const status = h('select', {}, options([{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngừng dùng (ẩn khỏi danh sách ghi nhận)' }]));
+      const reason = h('input', { type: 'text', placeholder: 'Ví dụ: Áp dụng cho giai đoạn thi đua tháng 11' });
+      const fromBox = field('Điểm mới áp dụng từ ngày', from, 'Bản ghi ghi nhận từ ngày này dùng điểm mới. Bản ghi đã duyệt trước đó giữ nguyên điểm.');
+      const syncFrom = () => { fromBox.hidden = pts.value === '' || Number(pts.value) === Number(curPts); };
+      pts.addEventListener('input', syncFrom); syncFrom();
+      modal({ title: isNew ? 'Thêm loại lỗi / nội dung tuyên dương' : 'Sửa: ' + t.name, body: h('div', {},
+        field('Mã', code), field('Tên', name), h('div', { class: 'grid c2' }, field('Loại', kind), field('Số điểm (không dấu; dấu theo loại)', pts)), fromBox,
+        field('Nhóm', group, 'Ví dụ: Cá nhân – nhẹ, Tập thể – nhẹ, Cộng – nề nếp'), groupList, field('Trạng thái', status), field('Căn cứ / ghi chú đổi điểm', reason)),
+        actions: [{ label: 'Hủy' }, { label: 'Lưu', kind: 'primary', onClick: async () => {
+          if (!name.value.trim()) { toast('Nhập tên.', 'err'); return false; }
+          if (pts.value !== '' && (isNaN(Number(pts.value)) || Number(pts.value) < 0)) { toast('Số điểm phải là số không âm.', 'err'); return false; }
+          const saved = await app.call('type.save', { type_id: t.type_id, code: code.value, name: name.value.trim(), kind: kind.value, group_name: group.value.trim(),
+            sort_order: t.sort_order, status: status.value });
+          // Điểm lưu không dấu, dấu theo loại → đổi Trừ/Cộng không cần phiên bản điểm mới
+          if (pts.value !== '' && (isNew || Number(pts.value) !== Number(curPts))) {
+            await app.call('rule.save', { type_id: saved.type_id || t.type_id, points: Number(pts.value), scope_type: 'ALL', scope_value: '', effective_from: from.value, note: reason.value || 'Sửa trong Danh mục lỗi' });
+          }
+          await app.reloadBoot(); drawList();
+          toast(status.value === 'INACTIVE' ? 'Đã ngừng dùng loại này' : 'Đã lưu', 'ok');
+        } }] });
+    }
+    drawList();
   }
 
   async function rulesSection(body) {
@@ -85,7 +134,7 @@ export async function render(el, app) {
       } catch (e) { errorBox(body, e, load); }
     };
     function newRule() {
-      const t = h('select', {}, options(app.boot.types, { value: 'type_id', label: 'name' }));
+      const t = searchSelect({ placeholder: 'Gõ để tìm nhanh loại lỗi', items: app.boot.types.map(x => ({ value: x.type_id, label: (x.kind === 'CONG' ? '🌟 ' : '') + x.name, sub: x.group_name || '' })) });
       const p = h('input', { type: 'number', step: '0.5', min: 0 }), from = h('input', { type: 'date' }), note = h('input', { type: 'text' });
       const scope = h('select', {}, options([{ value: 'ALL', label: 'Toàn trường' }, { value: 'CAMPUS', label: 'Theo cơ sở' }, { value: 'GRADE', label: 'Theo khối' }]));
       const sv = h('input', { type: 'text', placeholder: 'Mã cơ sở (CS-GT/CS-HS) hoặc khối (6–9)' });

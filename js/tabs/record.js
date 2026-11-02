@@ -18,8 +18,11 @@ export async function render(el, app, params) {
   const fCampus = h('select', {}, options(campuses, { value: 'campus_id', label: 'name' }));
   const fClass = h('select');
   const fStudent = searchSelect({ placeholder: 'Gõ tên học sinh để tìm (có thể bỏ trống)', emptyLabel: '— Không xác định —' });
-  const fType = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: mu, muon, truy bai', items: b.types.map(t => ({
-    value: t.type_id, label: `${t.kind === 'CONG' ? '[CỘNG] ' : ''}${t.name}${t.points != null ? ' (' + signed(t.points) + ')' : ''}`, sub: t.group_name || '' })) });
+  const fType = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: mu, muon, truy bai' });
+  // Hai chế độ: ghi nhận vi phạm (loại TRU) hoặc ghi nhận tuyên dương (loại CONG)
+  let mode = params.mode === 'tuyen-duong' ? 'CONG' : 'TRU';
+  const typeItems = () => b.types.filter(t => (t.kind === 'CONG') === (mode === 'CONG')).map(t => ({
+    value: t.type_id, label: `${t.name}${t.points != null ? ' (' + signed(t.points) + ')' : ''}`, sub: t.group_name || '' }));
   const pts = h('div', { class: 'small muted' });
   const fNote = h('textarea', { placeholder: 'Mô tả ngắn (không ghi thông tin cá nhân không cần thiết)', maxlength: 1000 });
   const timeShow = h('b', {}, 'Tự động theo giờ máy chủ khi gửi');
@@ -84,7 +87,25 @@ export async function render(el, app, params) {
   camInput.addEventListener('change', () => takeFiles(camInput));
   libInput.addEventListener('change', () => takeFiles(libInput));
 
-  const hero = h('button', { class: 'btn btn-hero', type: 'button', onclick: () => camInput.click() }, h('span', { class: 'ic' }, '📷'), 'CHỤP ẢNH – GHI NHẬN VI PHẠM');
+  const heroText = h('span');
+  const hero = h('button', { class: 'btn btn-hero', type: 'button', onclick: () => camInput.click() }, h('span', { class: 'ic' }, '📷'), heroText);
+  const lblClass = h('span'), lblStudent = h('span'), lblType = h('span');
+  const tabTru = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('TRU') }, '⚠️ Vi phạm');
+  const tabCong = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('CONG') }, '🌟 Tuyên dương');
+  function setMode(m) {
+    mode = m;
+    const cong = m === 'CONG';
+    tabTru.classList.toggle('on', !cong); tabCong.classList.toggle('on', cong);
+    hero.classList.toggle('praise', cong);
+    heroText.textContent = cong ? 'CHỤP ẢNH – GHI NHẬN TUYÊN DƯƠNG' : 'CHỤP ẢNH – GHI NHẬN VI PHẠM';
+    lblClass.textContent = cong ? 'Lớp được tuyên dương' : 'Lớp vi phạm';
+    lblStudent.textContent = cong ? 'Học sinh được tuyên dương (bỏ trống nếu là tập thể lớp)' : 'Học sinh (nếu xác định được)';
+    lblType.textContent = cong ? 'Nội dung tuyên dương' : 'Loại vi phạm';
+    fType.setItems(typeItems()); fType.value = ''; pts.textContent = '';
+    fType.querySelector('input').placeholder = cong ? 'Gõ để tìm, ví dụ: viec tot, giai nhat' : 'Gõ để tìm lỗi, ví dụ: mu, muon, truy bai';
+    submitBtn.textContent = cong ? '📤 GỬI TUYÊN DƯƠNG' : '📤 GỬI GHI NHẬN';
+    submitBtn.style.background = cong ? '#ef6c00' : '';
+  }
   const timeBox = h('div', { class: 'f' }, h('span', { class: 'small muted' }, 'Ngày giờ ghi nhận: '), timeShow,
     canAdjust ? h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => {
       const r = await askReason('Điều chỉnh ngày giờ ghi nhận', { label: 'Lý do điều chỉnh (bắt buộc)', min: 5 });
@@ -93,14 +114,16 @@ export async function render(el, app, params) {
   const submitBtn = h('button', { class: 'btn green block', type: 'button', style: 'min-height:52px;font-size:17px', onclick: submit }, '📤 GỬI GHI NHẬN');
 
   el.append(h('div', { class: 'card' },
+    h('div', { class: 'seg mode-seg' }, tabTru, tabCong),
     hero, camInput, libInput,
     h('div', { class: 'actions', style: 'margin:10px 0' }, h('button', { class: 'btn', type: 'button', onclick: () => libInput.click() }, '🖼️ Chọn ảnh từ thư viện (nhiều ảnh)')),
     thumbs,
-    h('div', { class: 'grid c2', style: 'margin-top:12px' }, field('Cơ sở', fCampus), field('Lớp vi phạm', fClass)),
-    field('Học sinh (nếu xác định được)', fStudent),
-    field('Loại vi phạm', fType, pts), field('Ghi chú', fNote), timeBox,
+    h('div', { class: 'grid c2', style: 'margin-top:12px' }, field('Cơ sở', fCampus), field(lblClass, fClass)),
+    field(lblStudent, fStudent),
+    field(lblType, fType, pts), field('Ghi chú', fNote), timeBox,
     h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Người ghi nhận: ', h('b', {}, u.full_name), ' – ', u.role_label),
     submitBtn, status));
+  setMode(mode);
 
   // Hộp thư đi
   const outCard = h('div', { class: 'card' }, h('h2', {}, '📮 Trạng thái gửi trên máy này'));
@@ -119,14 +142,14 @@ export async function render(el, app, params) {
 
   async function submit() {
     if (busy) return;
-    if (!fClass.value) return toast('Chọn lớp vi phạm.', 'err');
-    if (!fType.value) return toast('Chọn loại vi phạm.', 'err');
+    if (!fClass.value) return toast(mode === 'CONG' ? 'Chọn lớp được tuyên dương.' : 'Chọn lớp vi phạm.', 'err');
+    if (!fType.value) return toast(mode === 'CONG' ? 'Chọn nội dung tuyên dương.' : 'Chọn loại vi phạm.', 'err');
     if (b.settings.require_evidence === '1' && !images.length) return toast('Cần ít nhất 1 ảnh minh chứng.', 'err');
     busy = true; submitBtn.disabled = true;
     const offline = !navigator.onLine;
     const rec = {
       id: uid() + '-' + Date.now().toString(36), created_at: new Date().toISOString(), state: 'pending', uploaded: [], attempts: 0,
-      label: `${app.classById(fClass.value)?.name} – ${app.typeById(fType.value)?.name}`,
+      label: `${mode === 'CONG' ? '🌟 ' : ''}${app.classById(fClass.value)?.name} – ${app.typeById(fType.value)?.name}`,
       form: { class_id: fClass.value, type_id: fType.value, student_id: fStudent.value, note: fNote.value.trim(),
         occurred_at: !fTime.hidden && fTime.value ? fTime.value + ':00+07:00' : new Date().toISOString(), offline: true, adjust_reason: !fTime.hidden ? adjustReason : '' },
       images: images.map(i => ({ name: i.name, mime: i.mime, blob: i.blob, checksum: i.checksum, width: i.width, height: i.height, preview: i.preview, thumb: i.thumb }))

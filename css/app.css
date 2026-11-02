@@ -82,6 +82,18 @@ main { flex: 1; min-width: 0; padding: 14px 16px calc(var(--nav-h) + 24px); max-
 .btn.block { width: 100%; }
 .btn-hero { width: 100%; min-height: 96px; font-size: 19px; letter-spacing: .4px; border-radius: 16px; background: linear-gradient(135deg, var(--green), #43a047); color: #fff; border: 0; box-shadow: 0 6px 18px rgba(46,125,50,.35); flex-direction: column; }
 .btn-hero .ic { font-size: 34px; }
+.btn-hero.praise { background: linear-gradient(135deg, #ef6c00, #fbc02d); box-shadow: 0 6px 18px rgba(239,108,0,.35); }
+.mode-seg { display: flex; width: 100%; margin-bottom: 10px; }
+.mode-seg button { flex: 1; padding: 11px 8px; font-size: 15px; font-weight: 600; }
+.mode-seg button.on:first-child { background: var(--red); color: #fff; }
+.mode-seg button.on:last-child { background: #ef6c00; color: #fff; }
+.kind-seg button.on[data-k=""] { background: var(--blue, #1565c0); color: #fff; }
+.kind-seg button.on[data-k="TRU"] { background: var(--red); color: #fff; }
+.review-card.praise { border-left: 5px solid #ef6c00; }
+.type-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+.type-tools input[type=search] { flex: 1 1 220px; }
+.type-tools .seg button.on { background: var(--blue, #1565c0); color: #fff; }
+.type-tools select { flex: 1 1 200px; width: auto; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 label.f { display: block; margin-bottom: 10px; }

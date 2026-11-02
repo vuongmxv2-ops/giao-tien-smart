@@ -7,7 +7,7 @@ const CFG = window.GTS_CONFIG || {};
 /** 12 tab chức năng. perms: chỉ để ẩn/hiện; quyền thật được kiểm tra ở backend. */
 export const TABS = [
   { id: 'tong-quan', n: 1, title: 'Tổng quan', ic: '🏠', mod: 'overview', perms: ['dashboard.view', 'dashboard.own', 'dashboard.class', 'incident.review'] },
-  { id: 'ghi-nhan', n: 2, title: 'Ghi nhận vi phạm', short: 'Ghi nhận', ic: '📷', mod: 'record', perms: ['incident.create'] },
+  { id: 'ghi-nhan', n: 2, title: 'Ghi nhận vi phạm – Tuyên dương', short: 'Ghi nhận', ic: '📷', mod: 'record', perms: ['incident.create'] },
   { id: 'kiem-tra', n: 3, title: 'Kiểm tra nề nếp', short: 'Kiểm tra', ic: '✅', mod: 'checks', perms: ['check.create', 'check.view'] },
   { id: 'lich-truc', n: 4, title: 'Lịch trực ban', ic: '🗓️', mod: 'duty', perms: ['duty.view', 'duty.view.own', 'duty.manage'] },
   { id: 'duyet', n: 5, title: 'Duyệt minh chứng', ic: '🛡️', mod: 'review', perms: ['incident.review'] },
