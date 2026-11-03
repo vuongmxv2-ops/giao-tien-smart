@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, signed, askReason, modal, b64ToBlob, nowLocalInput } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, signed, askReason, modal, b64ToBlob, nowLocalInput, searchSelect } from '../ui.js';
 import { viewEvidence } from './record.js';
 import { thumbUrl } from '../thumbs.js';
 
@@ -125,7 +125,11 @@ export async function render(el, app) {
 
   function edit(i) {
     const fc = h('select', {}, options(b.classes, { value: 'class_id', label: 'name', selected: i.class_id_at_time }));
-    const ft = h('select', {}, options(b.types, { value: 'type_id', label: t => (t.kind === 'CONG' ? '🌟 ' : '') + t.name, selected: i.type_id }));
+    // Tìm nhanh lỗi (gõ không dấu cũng được); giữ được cả loại đã ngừng dùng của bản ghi cũ
+    const typeItems = b.types.map(t => ({ value: t.type_id, label: (t.kind === 'CONG' ? '🌟 ' : '') + t.name + (t.points != null ? ` (${signed(t.points)})` : ''), sub: t.group_name || '' }));
+    if (!typeItems.some(t => t.value === i.type_id)) typeItems.unshift({ value: i.type_id, label: i.type_name, sub: 'Loại đã ngừng dùng' });
+    const ft = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: dien thoai, muon, so vin', items: typeItems });
+    ft.value = i.type_id;
     const ftime = h('input', { type: 'datetime-local', value: String(i.occurred_at).substr(0, 16) || nowLocalInput() });
     const fp = h('input', { type: 'number', step: '0.5', value: i.approved_points !== '' ? i.approved_points : '' , placeholder: 'Để trống = theo nội quy' });
     const fn = h('textarea', {}, i.note || '');
