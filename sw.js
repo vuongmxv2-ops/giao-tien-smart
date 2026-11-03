@@ -1,6 +1,6 @@
 /* Service worker: lưu sẵn giao diện để mở nhanh. KHÔNG lưu dữ liệu API (mọi yêu cầu API là POST, đi thẳng ra mạng).
  * Tệp giao diện: dùng ngay bản đã lưu, đồng thời tải bản mới ở nền. Khi phát hành bản mới, VERSION đổi → toàn bộ tệp được tải lại. */
-const VERSION = 'gts-v1.3.1';
+const VERSION = 'gts-v1.3.2';
 const SHELL = ['./', 'index.html', 'config.js', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/api.js', 'js/ui.js', 'js/image.js', 'js/queue.js', 'js/charts.js', 'js/thumbs.js',
   'js/tabs/overview.js', 'js/tabs/record.js', 'js/tabs/logbook.js', 'js/tabs/checks.js', 'js/tabs/duty.js', 'js/tabs/review.js', 'js/tabs/scores.js', 'js/tabs/ranking.js',

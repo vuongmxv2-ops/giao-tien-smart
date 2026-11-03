@@ -183,11 +183,12 @@ export function uid() {
 }
 
 /** Đọc tệp Excel/CSV bằng SheetJS, trả về mảng đối tượng theo dòng tiêu đề. */
-export async function readSheetFile(file) {
+/** raw: true → ô ngày trả về số ngày của Excel (không phụ thuộc định dạng hiển thị). */
+export async function readSheetFile(file, { raw = false } = {}) {
   await lib('XLSX');
   const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  return window.XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+  return window.XLSX.utils.sheet_to_json(ws, { defval: '', raw });
 }
 
 /** Ánh xạ tiêu đề cột tiếng Việt/tiếng Anh sang khóa chuẩn. */
