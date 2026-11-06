@@ -27,25 +27,8 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   const status = h('div');
   const sendBtn = h('button', { class: 'btn primary block', type: 'button', style: 'min-height:52px;font-size:17px', onclick: send }, '📤 GỬI TẤT CẢ CÁC DÒNG');
 
-  /* ---------- LƯỢC BỚT ẢNH TRANG SỔ (chụp nhầm / chụp trùng) ---------- */
-  // Dấu vân ảnh (dHash 17×16 = 256 bit): hai ảnh chụp cùng một trang chỉ lệch ít bit → nghi trùng.
-  const HW = 17, HH = 16;
-  async function fingerprint(blob) {
-    try {
-      const bmp = await createImageBitmap(blob);
-      const c = document.createElement('canvas'); c.width = HW; c.height = HH;
-      const g = c.getContext('2d'); g.drawImage(bmp, 0, 0, HW, HH); bmp.close && bmp.close();
-      const d = g.getImageData(0, 0, HW, HH).data, lum = i => d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
-      const bits = [];
-      for (let y = 0; y < HH; y++) for (let x = 0; x < HW - 1; x++) bits.push(lum((y * HW + x) * 4) > lum((y * HW + x + 1) * 4) ? 1 : 0);
-      return bits;
-    } catch { return null; }
-  }
-  const SIMILAR = 24; // tối đa 24/256 bit khác nhau (~10%) thì coi là gần giống
-  const distance = (a, b) => (a && b) ? a.reduce((s, v, i) => s + (v !== b[i]), 0) : 99;
-  /** Ảnh nghi trùng: giống một ảnh đứng TRƯỚC nó (ảnh đầu tiên luôn được giữ). */
-  const isDup = (img) => photos.slice(0, photos.indexOf(img)).some(p => distance(p.fp, img.fp) <= SIMILAR);
-
+  /* ---------- LƯỢC BỚT ẢNH TRANG SỔ (chụp nhầm / chụp trùng) ----------
+   * Ảnh trùng y hệt (cùng tệp) tự bỏ qua. Ảnh chụp lại cùng trang: người nhập bấm vào ảnh để xem lớn rồi bỏ. */
   function removePhoto(img, silent) {
     if (carrier) return toast('Ảnh đã gửi lên, không bỏ được nữa.', 'warn');
     photos = photos.filter(x => x !== img);
@@ -55,31 +38,22 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   }
 
   function viewPhoto(img) {
-    const n = photos.indexOf(img) + 1, dup = isDup(img);
+    const n = photos.indexOf(img) + 1;
     const big = h('img', { src: URL.createObjectURL(img.preview || img.blob), alt: 'Trang sổ ' + n });
     const m = modal({ title: `Ảnh trang sổ ${n}/${photos.length}`, wide: true,
-      body: h('div', { class: 'viewer' }, dup ? h('div', { class: 'notice yellow' }, '⚠ Ảnh này rất giống một ảnh đã chụp trước – có thể là chụp trùng.') : '', big),
+      body: h('div', { class: 'viewer' }, big),
       onClose: () => URL.revokeObjectURL(big.src),
       actions: carrier ? [{ label: 'Đóng' }] : [{ label: 'Giữ lại' }, { label: '🗑 Bỏ ảnh này', kind: 'red', onClick: () => removePhoto(img) }] });
     return m;
   }
 
   function refreshPhotos() {
-    let dupCount = 0;
-    photos.forEach((img, i) => {
-      const dup = isDup(img); if (dup) dupCount++;
-      img.noEl.textContent = String(i + 1);
-      img.dupEl.hidden = !dup;
-      img.el.style.outline = dup ? '3px solid #f59e0b' : '';
-    });
+    photos.forEach((img, i) => { img.noEl.textContent = String(i + 1); });
     photoBar.replaceChildren();
     if (!photos.length) return;
-    photoBar.append(h('span', { class: 'muted' }, `${photos.length} ảnh trang sổ · bấm vào ảnh để xem lớn`));
+    photoBar.append(h('span', { class: 'muted' }, carrier ? `${photos.length} ảnh trang sổ đã gửi`
+      : `${photos.length} ảnh trang sổ · bấm vào ảnh để xem lớn, bấm ✕ để bỏ ảnh chụp nhầm/trùng`));
     if (carrier) return;
-    if (dupCount) photoBar.append(h('button', { class: 'btn sm yellow', type: 'button', onclick: () => {
-      const dups = photos.filter(isDup); dups.forEach(p => removePhoto(p, true));
-      toast(`Đã bỏ ${dups.length} ảnh nghi trùng. Còn ${photos.length} ảnh.`, 'ok');
-    } }, `🧹 Bỏ ${dupCount} ảnh nghi trùng`));
     if (photos.length > 1) photoBar.append(h('button', { class: 'btn sm ghost', type: 'button', onclick: async () => {
       if (!await confirmBox('Bỏ tất cả ảnh?', `Bỏ cả ${photos.length} ảnh trang sổ để chụp lại từ đầu?`, 'Bỏ tất cả', 'red')) return;
       [...photos].forEach(p => removePhoto(p, true)); toast('Đã bỏ tất cả ảnh.', 'info');
@@ -95,14 +69,11 @@ export function renderLogbook(box, app, { recordable, campuses }) {
       try {
         const img = await processImage(f);
         if (photos.some(x => x.checksum === img.checksum)) { ph.remove(); toast('Ảnh này đã có trong danh sách – bỏ qua ảnh trùng.', 'warn'); continue; }
-        img.fp = await fingerprint(img.thumb || img.blob);
         img.el = ph; img.url = URL.createObjectURL(img.thumb || img.blob);
         img.noEl = h('span', { style: 'position:absolute;left:4px;top:4px;background:rgba(15,23,42,.65);color:#fff;border-radius:10px;padding:0 7px;font-size:12px;font-weight:700' });
-        img.dupEl = h('span', { hidden: true, style: 'position:absolute;left:0;right:0;bottom:0;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:2px 0' }, 'Nghi trùng');
         photos.push(img);
-        ph.replaceChildren(h('img', { src: img.url, alt: 'Trang sổ', onclick: () => viewPhoto(img) }), img.noEl, img.dupEl,
+        ph.replaceChildren(h('img', { src: img.url, alt: 'Trang sổ', onclick: () => viewPhoto(img) }), img.noEl,
           h('button', { class: 'x', type: 'button', 'aria-label': 'Bỏ ảnh', onclick: e => { e.stopPropagation(); removePhoto(img); } }, '✕'));
-        if (isDup(img)) toast('Ảnh vừa chụp rất giống một ảnh trước – kiểm tra và bỏ nếu chụp trùng.', 'warn', 5000);
         refreshPhotos();
       } catch (e) { ph.remove(); toast('Không đọc được ảnh: ' + e.message, 'err'); }
     }
