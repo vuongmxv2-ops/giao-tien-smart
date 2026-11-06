@@ -1,4 +1,4 @@
-import { h, options, field, toast, signed, uid, blobToB64, searchSelect } from '../ui.js';
+import { h, options, field, toast, signed, uid, blobToB64, searchSelect, modal, confirmBox } from '../ui.js';
 import { processImage } from '../image.js';
 
 /**
@@ -20,11 +20,71 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   const pick = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
   const cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
   const thumbs = h('div', { class: 'thumbs' });
+  const photoBar = h('div', { class: 'small', style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px' });
   const fCampus = h('select', {}, options(campuses, { value: 'campus_id', label: 'name' }));
   const fDate = h('input', { type: 'date', value: todayKey, max: todayKey, min: minKey });
   const list = h('div', { class: 'lb-lines' });
   const status = h('div');
   const sendBtn = h('button', { class: 'btn primary block', type: 'button', style: 'min-height:52px;font-size:17px', onclick: send }, '📤 GỬI TẤT CẢ CÁC DÒNG');
+
+  /* ---------- LƯỢC BỚT ẢNH TRANG SỔ (chụp nhầm / chụp trùng) ---------- */
+  // Dấu vân ảnh (dHash 17×16 = 256 bit): hai ảnh chụp cùng một trang chỉ lệch ít bit → nghi trùng.
+  const HW = 17, HH = 16;
+  async function fingerprint(blob) {
+    try {
+      const bmp = await createImageBitmap(blob);
+      const c = document.createElement('canvas'); c.width = HW; c.height = HH;
+      const g = c.getContext('2d'); g.drawImage(bmp, 0, 0, HW, HH); bmp.close && bmp.close();
+      const d = g.getImageData(0, 0, HW, HH).data, lum = i => d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+      const bits = [];
+      for (let y = 0; y < HH; y++) for (let x = 0; x < HW - 1; x++) bits.push(lum((y * HW + x) * 4) > lum((y * HW + x + 1) * 4) ? 1 : 0);
+      return bits;
+    } catch { return null; }
+  }
+  const SIMILAR = 24; // tối đa 24/256 bit khác nhau (~10%) thì coi là gần giống
+  const distance = (a, b) => (a && b) ? a.reduce((s, v, i) => s + (v !== b[i]), 0) : 99;
+  /** Ảnh nghi trùng: giống một ảnh đứng TRƯỚC nó (ảnh đầu tiên luôn được giữ). */
+  const isDup = (img) => photos.slice(0, photos.indexOf(img)).some(p => distance(p.fp, img.fp) <= SIMILAR);
+
+  function removePhoto(img, silent) {
+    if (carrier) return toast('Ảnh đã gửi lên, không bỏ được nữa.', 'warn');
+    photos = photos.filter(x => x !== img);
+    img.el?.remove(); if (img.url) URL.revokeObjectURL(img.url);
+    if (!silent) toast('Đã bỏ 1 ảnh. Còn ' + photos.length + ' ảnh trang sổ.', 'info', 2500);
+    refreshPhotos();
+  }
+
+  function viewPhoto(img) {
+    const n = photos.indexOf(img) + 1, dup = isDup(img);
+    const big = h('img', { src: URL.createObjectURL(img.preview || img.blob), alt: 'Trang sổ ' + n });
+    const m = modal({ title: `Ảnh trang sổ ${n}/${photos.length}`, wide: true,
+      body: h('div', { class: 'viewer' }, dup ? h('div', { class: 'notice yellow' }, '⚠ Ảnh này rất giống một ảnh đã chụp trước – có thể là chụp trùng.') : '', big),
+      onClose: () => URL.revokeObjectURL(big.src),
+      actions: carrier ? [{ label: 'Đóng' }] : [{ label: 'Giữ lại' }, { label: '🗑 Bỏ ảnh này', kind: 'red', onClick: () => removePhoto(img) }] });
+    return m;
+  }
+
+  function refreshPhotos() {
+    let dupCount = 0;
+    photos.forEach((img, i) => {
+      const dup = isDup(img); if (dup) dupCount++;
+      img.noEl.textContent = String(i + 1);
+      img.dupEl.hidden = !dup;
+      img.el.style.outline = dup ? '3px solid #f59e0b' : '';
+    });
+    photoBar.replaceChildren();
+    if (!photos.length) return;
+    photoBar.append(h('span', { class: 'muted' }, `${photos.length} ảnh trang sổ · bấm vào ảnh để xem lớn`));
+    if (carrier) return;
+    if (dupCount) photoBar.append(h('button', { class: 'btn sm yellow', type: 'button', onclick: () => {
+      const dups = photos.filter(isDup); dups.forEach(p => removePhoto(p, true));
+      toast(`Đã bỏ ${dups.length} ảnh nghi trùng. Còn ${photos.length} ảnh.`, 'ok');
+    } }, `🧹 Bỏ ${dupCount} ảnh nghi trùng`));
+    if (photos.length > 1) photoBar.append(h('button', { class: 'btn sm ghost', type: 'button', onclick: async () => {
+      if (!await confirmBox('Bỏ tất cả ảnh?', `Bỏ cả ${photos.length} ảnh trang sổ để chụp lại từ đầu?`, 'Bỏ tất cả', 'red')) return;
+      [...photos].forEach(p => removePhoto(p, true)); toast('Đã bỏ tất cả ảnh.', 'info');
+    } }, '🗑 Bỏ tất cả'));
+  }
 
   async function takeFiles(input) {
     const files = [...input.files]; const copies = [];
@@ -34,10 +94,16 @@ export function renderLogbook(box, app, { recordable, campuses }) {
       const ph = h('div', { class: 'thumb' }, h('span', { class: 'spinner' })); thumbs.append(ph);
       try {
         const img = await processImage(f);
-        if (photos.some(x => x.checksum === img.checksum)) { ph.remove(); continue; }
+        if (photos.some(x => x.checksum === img.checksum)) { ph.remove(); toast('Ảnh này đã có trong danh sách – bỏ qua ảnh trùng.', 'warn'); continue; }
+        img.fp = await fingerprint(img.thumb || img.blob);
+        img.el = ph; img.url = URL.createObjectURL(img.thumb || img.blob);
+        img.noEl = h('span', { style: 'position:absolute;left:4px;top:4px;background:rgba(15,23,42,.65);color:#fff;border-radius:10px;padding:0 7px;font-size:12px;font-weight:700' });
+        img.dupEl = h('span', { hidden: true, style: 'position:absolute;left:0;right:0;bottom:0;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:2px 0' }, 'Nghi trùng');
         photos.push(img);
-        ph.replaceChildren(h('img', { src: URL.createObjectURL(img.thumb || img.blob), alt: 'Trang sổ' }),
-          h('button', { class: 'x', type: 'button', 'aria-label': 'Bỏ ảnh', onclick: () => { if (carrier) return toast('Ảnh đã gửi lên, không bỏ được nữa.', 'warn'); photos = photos.filter(x => x !== img); ph.remove(); } }, '✕'));
+        ph.replaceChildren(h('img', { src: img.url, alt: 'Trang sổ', onclick: () => viewPhoto(img) }), img.noEl, img.dupEl,
+          h('button', { class: 'x', type: 'button', 'aria-label': 'Bỏ ảnh', onclick: e => { e.stopPropagation(); removePhoto(img); } }, '✕'));
+        if (isDup(img)) toast('Ảnh vừa chụp rất giống một ảnh trước – kiểm tra và bỏ nếu chụp trùng.', 'warn', 5000);
+        refreshPhotos();
       } catch (e) { ph.remove(); toast('Không đọc được ảnh: ' + e.message, 'err'); }
     }
   }
@@ -96,7 +162,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     h('div', { class: 'grid c2' },
       h('button', { class: 'btn btn-hero logbook', type: 'button', style: 'min-height:80px', onclick: () => cam.click() }, h('span', { class: 'ic' }, '📒'), 'CHỤP TRANG SỔ'),
       h('button', { class: 'btn', type: 'button', style: 'min-height:80px', onclick: () => pick.click() }, '🖼️ Chọn ảnh trang sổ từ thư viện')),
-    cam, pick, h('div', { style: 'margin:10px 0' }, thumbs),
+    cam, pick, h('div', { style: 'margin:10px 0' }, thumbs, photoBar),
     h('div', { class: 'grid c2' }, field('Cơ sở', fCampus), field('Ngày trực (theo sổ)', fDate, 'Được nhập lại các ngày trong tuần đó (thứ Sáu, thứ Bảy, Chủ nhật vẫn nhập bù được cho tuần trước).')),
     list,
     h('button', { class: 'btn block', type: 'button', style: 'margin:4px 0 12px;border-style:dashed', onclick: () => addLine(lines[lines.length - 1]) }, '＋ Thêm dòng'),
@@ -137,6 +203,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
         }
         await app.call('incident.submit', { incident_id: inc.incident_id, expected_evidence: photos.length });
         carrier = inc.incident_id;
+        refreshPhotos();
         mark(first, 'done', '✔ Đã gửi' + (inc.dup_flag ? ' – nghi trùng' : ''));
       }
       // Bước 2: các dòng còn lại – một lần gọi, dùng lại ảnh đã gửi
@@ -167,6 +234,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   }
 
   function reset() {
-    photos = []; carrier = null; thumbs.replaceChildren(); list.replaceChildren(); lines = []; status.replaceChildren(); addLine();
+    photos.forEach(p => p.url && URL.revokeObjectURL(p.url));
+    photos = []; carrier = null; thumbs.replaceChildren(); photoBar.replaceChildren(); list.replaceChildren(); lines = []; status.replaceChildren(); addLine();
   }
 }
