@@ -89,6 +89,38 @@ export const wdLabel = k => WDL[weekdayOf(k)];
 export function addDays(k, n) { const p = k.split('-'); const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]) + n * 864e5); return d.toISOString().substr(0, 10); }
 export function todayKey() { const d = new Date(Date.now() + 7 * 36e5); return d.toISOString().substr(0, 10); }
 export function nowLocalInput() { const d = new Date(Date.now() + 7 * 36e5); return d.toISOString().substr(0, 16); }
+
+/**
+ * Ô chọn giờ kiểu 24 giờ (00–23 : 00–59), hiển thị giống nhau trên mọi máy
+ * (ô time có sẵn của trình duyệt có thể hiện SA/CH tùy cài đặt điện thoại).
+ * Dùng như một ô nhập: .value = 'HH:MM', .disabled, .hidden.
+ */
+export function time24(value) {
+  const pad = n => String(n).padStart(2, '0');
+  const sel = (label, n) => h('select', { 'aria-label': label, style: 'width:auto;min-width:78px' },
+    ...Array.from({ length: n }, (_, i) => h('option', { value: pad(i) }, pad(i))));
+  const hh = sel('Giờ', 24), mm = sel('Phút', 60);
+  const el = h('span', {}, h('span', { style: 'display:inline-flex;gap:6px;align-items:center' }, hh, h('b', {}, ':'), mm, h('span', { class: 'small muted' }, '(24 giờ)')));
+  Object.defineProperty(el, 'value', {
+    get: () => hh.value + ':' + mm.value,
+    set: v => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v || '')); if (m) { hh.value = pad(+m[1] % 24); mm.value = m[2]; } } });
+  Object.defineProperty(el, 'disabled', { get: () => hh.disabled, set: v => { hh.disabled = mm.disabled = !!v; } });
+  el.value = value || '07:00';
+  return el;
+}
+
+/** Ô ngày + giờ 24 giờ, .value = 'YYYY-MM-DDTHH:MM' (thay cho datetime-local). */
+export function dateTime24(value) {
+  const d = h('input', { type: 'date', style: 'width:auto' });
+  const t = time24('07:00');
+  const el = h('span', {}, h('span', { style: 'display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap' }, d, t));
+  Object.defineProperty(el, 'value', {
+    get: () => d.value ? d.value + 'T' + t.value : '',
+    set: v => { const s = String(v || ''); d.value = s.slice(0, 10); if (s.length >= 16) t.value = s.slice(11, 16); } });
+  Object.defineProperty(el, 'disabled', { get: () => d.disabled, set: v => { d.disabled = t.disabled = !!v; } });
+  if (value) el.value = value;
+  return el;
+}
 export const signed = v => (v > 0 ? '+' : '') + v;
 
 export const STATUS = {
