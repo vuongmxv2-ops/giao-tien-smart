@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, nowLocalInput, signed, uid, askReason, modal, b64ToBlob, searchSelect } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, nowLocalInput, signed, uid, askReason, modal, b64ToBlob, searchSelect, dateTime24 } from '../ui.js';
 import { processImage } from '../image.js';
 import * as outbox from '../queue.js';
 
@@ -26,7 +26,7 @@ export async function render(el, app, params) {
   const pts = h('div', { class: 'small muted' });
   const fNote = h('textarea', { placeholder: 'Mô tả ngắn (không ghi thông tin cá nhân không cần thiết)', maxlength: 1000 });
   const timeShow = h('b', {}, 'Tự động theo giờ máy chủ khi gửi');
-  const fTime = h('input', { type: 'datetime-local', hidden: true });
+  const fTime = dateTime24(); fTime.hidden = true;
   let adjustReason = '';
   const canAdjust = app.can('incident.adjustTime');
   const status = h('div');
