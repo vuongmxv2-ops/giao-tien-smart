@@ -11,7 +11,11 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   let photos = [], lines = [], carrier = null, busy = false;
   const studentCache = new Map();
   const todayKey = b.today || new Date().toISOString().slice(0, 10);
-  const minKey = new Date(Date.parse(todayKey) - 2 * 864e5).toISOString().slice(0, 10);
+  // Được nhập lại các ngày trong tuần thi đua hiện tại (T6 → T5).
+  // Thứ Sáu, thứ Bảy, Chủ nhật (3 ngày đầu tuần mới) vẫn được nhập bù cho tuần trước.
+  const addDays = (k, n) => new Date(Date.parse(k) + n * 864e5).toISOString().slice(0, 10);
+  const weekStart = b.current_week?.start_date || todayKey;
+  const minKey = todayKey <= addDays(weekStart, 2) ? addDays(weekStart, -7) : weekStart;
 
   const pick = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
   const cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
@@ -93,7 +97,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
       h('button', { class: 'btn btn-hero logbook', type: 'button', style: 'min-height:80px', onclick: () => cam.click() }, h('span', { class: 'ic' }, '📒'), 'CHỤP TRANG SỔ'),
       h('button', { class: 'btn', type: 'button', style: 'min-height:80px', onclick: () => pick.click() }, '🖼️ Chọn ảnh trang sổ từ thư viện')),
     cam, pick, h('div', { style: 'margin:10px 0' }, thumbs),
-    h('div', { class: 'grid c2' }, field('Cơ sở', fCampus), field('Ngày trực (theo sổ)', fDate, 'Được nhập lại trong vòng 2 ngày gần nhất.')),
+    h('div', { class: 'grid c2' }, field('Cơ sở', fCampus), field('Ngày trực (theo sổ)', fDate, 'Được nhập lại các ngày trong tuần đó (thứ Sáu, thứ Bảy, Chủ nhật vẫn nhập bù được cho tuần trước).')),
     list,
     h('button', { class: 'btn block', type: 'button', style: 'margin:4px 0 12px;border-style:dashed', onclick: () => addLine(lines[lines.length - 1]) }, '＋ Thêm dòng'),
     h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Người ghi nhận: ', h('b', {}, app.user.full_name)),
@@ -110,7 +114,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     const todo = lines.filter(l => l.state !== 'done');
     if (!todo.length) return toast('Không còn dòng nào cần gửi.', 'warn');
     if (b.settings.require_evidence === '1' && !photos.length) return toast('Cần chụp hoặc chọn ảnh trang sổ.', 'err');
-    if (!fDate.value || fDate.value > todayKey || fDate.value < minKey) return toast('Ngày trực phải trong 2 ngày gần nhất.', 'err');
+    if (!fDate.value || fDate.value > todayKey || fDate.value < minKey) return toast('Ngày trực phải nằm trong tuần thi đua hiện tại (T6, T7, CN được nhập bù tuần trước), không sau hôm nay.', 'err');
     for (const [i, ln] of todo.entries()) {
       if (!ln.cls.value) return toast(`Dòng ${lines.indexOf(ln) + 1}: chọn lớp.`, 'err');
       if (!ln.type.value) return toast(`Dòng ${lines.indexOf(ln) + 1}: chọn lỗi hoặc nội dung tuyên dương.`, 'err');
