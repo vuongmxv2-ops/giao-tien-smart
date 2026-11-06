@@ -1,4 +1,4 @@
-import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, signed, askReason, modal, b64ToBlob, nowLocalInput, searchSelect } from '../ui.js';
+import { h, options, field, toast, loading, errorBox, badge, fmtDateTime, signed, askReason, modal, b64ToBlob, nowLocalInput, searchSelect, dateTime24 } from '../ui.js';
 import { viewEvidence } from './record.js';
 import { thumbUrl } from '../thumbs.js';
 
@@ -130,7 +130,7 @@ export async function render(el, app) {
     if (!typeItems.some(t => t.value === i.type_id)) typeItems.unshift({ value: i.type_id, label: i.type_name, sub: 'Loại đã ngừng dùng' });
     const ft = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: dien thoai, muon, so vin', items: typeItems });
     ft.value = i.type_id;
-    const ftime = h('input', { type: 'datetime-local', value: String(i.occurred_at).substr(0, 16) || nowLocalInput() });
+    const ftime = dateTime24(String(i.occurred_at).substr(0, 16) || nowLocalInput());
     const fp = h('input', { type: 'number', step: '0.5', value: i.approved_points !== '' ? i.approved_points : '' , placeholder: 'Để trống = theo nội quy' });
     const fn = h('textarea', {}, i.note || '');
     const fr = h('textarea', { placeholder: 'Bắt buộc' });
