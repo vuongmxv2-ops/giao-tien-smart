@@ -1,4 +1,4 @@
-import { h, options, field, toast, signed, uid, blobToB64, searchSelect, modal, confirmBox } from '../ui.js';
+import { h, options, field, toast, signed, uid, blobToB64, searchSelect, modal, confirmBox, time24 } from '../ui.js';
 import { processImage } from '../image.js';
 
 /**
@@ -97,7 +97,7 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     const ln = { id: uid() + '-' + Date.now().toString(36), state: '' };
     const classes = () => recordable.filter(c => c.campus_id === fCampus.value);
     ln.cls = h('select', {}, options(classes(), { value: 'class_id', label: 'name', empty: '— Lớp —', selected: prev?.cls.value }));
-    ln.time = h('input', { type: 'time', value: prev?.time.value || (fDate.value === todayKey ? nowHM() : '07:00') });
+    ln.time = time24(prev?.time.value || (fDate.value === todayKey ? nowHM() : '07:00'));
     ln.type = searchSelect({ placeholder: 'Gõ để tìm lỗi / nội dung tuyên dương', items: typeItems() });
     ln.student = searchSelect({ placeholder: 'Học sinh (bỏ trống nếu lỗi tập thể)', emptyLabel: '— Lỗi tập thể / không xác định —' });
     ln.note = h('input', { type: 'text', placeholder: 'Ghi chú (ví dụ: dòng 5 trong sổ)' });
