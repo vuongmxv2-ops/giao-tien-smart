@@ -94,13 +94,21 @@ function showLogin(message) {
   app.user = null;
   const msg = h('div', { class: 'notice red', hidden: !message }, message || '');
   const btnBox = h('div', { id: 'gbtn', style: 'display:flex;justify-content:center;min-height:44px' });
+  // Đăng nhập bằng tên đăng nhập + mật khẩu (Sao đỏ: sd6a1, sd6a2…)
+  const uname = h('input', { type: 'text', placeholder: 'Tên đăng nhập, ví dụ: sd6a1', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false' });
+  const pw = h('input', { type: 'password', placeholder: 'Mật khẩu (6 chữ số)', autocomplete: 'current-password', inputmode: 'numeric', maxlength: 20 });
+  const pwForm = h('form', { class: 'pw-login', onsubmit: e => { e.preventDefault(); doPasswordLogin(uname.value, pw.value, msg); } },
+    uname, pw, h('button', { class: 'btn primary block', type: 'submit' }, 'Đăng nhập'));
   const card = h('div', { class: 'login' }, h('div', { class: 'card' },
     h('img', { src: 'icons/icon.svg', width: 72, height: 72, alt: '' }),
     h('div', { class: 'muted small' }, 'TRƯỜNG THCS GIAO TIẾN'),
     h('h1', {}, 'GIAO TIẾN SMART'),
     h('div', { class: 'muted' }, 'Hệ thống quản lý nề nếp Liên đội'),
-    h('p', { class: 'small muted' }, 'Đăng nhập bằng tài khoản Google đã được Tổng phụ trách cấp quyền. Ứng dụng không bao giờ hỏi mật khẩu.'),
-    msg, btnBox));
+    msg,
+    h('p', { class: 'small muted' }, 'Sao đỏ: đăng nhập bằng tên đăng nhập và mật khẩu được cấp.'),
+    pwForm,
+    h('div', { class: 'or-line small muted' }, 'hoặc – Thầy cô, BCH đăng nhập bằng tài khoản Google'),
+    btnBox));
   root.replaceChildren(card);
   if (isMock()) return mockLogin(btnBox, msg);
   if (!CFG.GOOGLE_CLIENT_ID) { msg.hidden = false; msg.textContent = 'Chưa cấu hình GOOGLE_CLIENT_ID trong config.js.'; return; }
@@ -131,6 +139,55 @@ async function doLogin(idToken, msg) {
   } catch (e) { msg.className = 'notice red'; msg.textContent = e.message; }
 }
 
+async function doPasswordLogin(username, password, msg) {
+  if (!username.trim() || !password) { msg.hidden = false; msg.className = 'notice red'; msg.textContent = 'Nhập tên đăng nhập và mật khẩu.'; return; }
+  try {
+    loading(msg); msg.hidden = false; msg.className = 'notice';
+    const r = await call('auth.passwordLogin', { username: username.trim(), password });
+    setToken(r.token);
+    await app.reloadBoot();
+    renderShell();
+    if (!app.user.must_change_pw) toast('Xin chào ' + app.user.full_name, 'ok');
+  } catch (e) { msg.className = 'notice red'; msg.textContent = e.message; }
+}
+
+/** Đổi mật khẩu (6 chữ số). forced = lần đăng nhập đầu: không dùng được chức năng nào cho tới khi đổi xong. */
+function changePasswordForm(forced, onDone) {
+  const msg = h('div', { class: 'notice red', hidden: true });
+  const mk = ph => h('input', { type: 'password', inputmode: 'numeric', maxlength: 6, pattern: '\\d{6}', placeholder: ph, autocomplete: 'new-password' });
+  const oldPw = mk(forced ? 'Mật khẩu hiện tại (123456)' : 'Mật khẩu hiện tại'), p1 = mk('Mật khẩu mới – 6 chữ số'), p2 = mk('Nhập lại mật khẩu mới');
+  oldPw.autocomplete = 'current-password';
+  const err = t => { msg.hidden = false; msg.className = 'notice red'; msg.textContent = t; };
+  const form = h('form', { class: 'pw-login', onsubmit: async e => {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(p1.value)) return err('Mật khẩu mới phải gồm đúng 6 chữ số.');
+    if (p1.value === '123456') return err('Không được dùng lại mật khẩu ban đầu 123456.');
+    if (p1.value !== p2.value) return err('Hai lần nhập mật khẩu mới không giống nhau.');
+    try {
+      loading(msg); msg.hidden = false; msg.className = 'notice';
+      await call('auth.changePassword', { old_password: oldPw.value, new_password: p1.value });
+      toast('Đã đổi mật khẩu. Hãy ghi nhớ mật khẩu mới.', 'ok', 5000);
+      onDone();
+    } catch (er) { err(er.message); }
+  } }, msg, oldPw, p1, p2, h('button', { class: 'btn primary block', type: 'submit' }, 'Đổi mật khẩu'));
+  return form;
+}
+
+function showForceChangePassword() {
+  const u = app.user;
+  root.replaceChildren(h('div', { class: 'login' }, h('div', { class: 'card' },
+    h('img', { src: 'icons/icon.svg', width: 56, height: 56, alt: '' }),
+    h('h1', {}, 'Đổi mật khẩu'),
+    h('div', { class: 'muted' }, `${u.full_name} · ${u.username}`),
+    h('p', { class: 'small muted' }, 'Đây là lần đăng nhập đầu tiên. Hãy đặt mật khẩu mới gồm 6 chữ số (khác 123456) và ghi nhớ để dùng cho các lần sau.'),
+    changePasswordForm(true, async () => { await app.reloadBoot(); renderShell(); toast('Xin chào ' + app.user.full_name, 'ok'); }),
+    h('button', { class: 'btn ghost block', style: 'margin-top:8px', onclick: logout }, '↩ Đăng xuất'))));
+}
+
+function openChangePassword() {
+  const m = modal({ title: '🔑 Đổi mật khẩu', body: changePasswordForm(false, () => m.close()) });
+}
+
 export async function logout() {
   try { await call('auth.logout'); } catch { /* bỏ qua */ }
   setToken(''); clearBoot();
@@ -140,6 +197,7 @@ export async function logout() {
 
 function renderShell() {
   const b = app.boot, u = app.user;
+  if (u.must_change_pw) return showForceChangePassword();
   const net = h('span', { class: 'netbadge' + (navigator.onLine ? '' : ' off') }, navigator.onLine ? 'Trực tuyến' : 'Mất mạng');
   addEventListener('online', () => { net.className = 'netbadge'; net.textContent = 'Trực tuyến'; });
   addEventListener('offline', () => { net.className = 'netbadge off'; net.textContent = 'Mất mạng'; });
@@ -151,13 +209,16 @@ function renderShell() {
     h('div', { class: 'who' }, h('b', {}, u.full_name), u.role_label, h('br'), net, isMock() ? h('span', { class: 'netbadge', style: 'background:#f9a825;color:#000' }, 'THỬ NGHIỆM') : ''));
   const side = h('nav', { class: 'sidebar', 'aria-label': 'Menu chính' },
     app.visibleTabs().map(t => h('button', { 'data-tab': t.id, onclick: () => app.nav(t.id) }, h('span', { class: 'ic' }, t.ic), `${t.n}. ${t.title}`)),
+    u.has_password ? h('button', { onclick: openChangePassword }, h('span', { class: 'ic' }, '🔑'), 'Đổi mật khẩu') : '',
     h('button', { onclick: logout }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'));
   const main = h('main', { id: 'view' });
+  // Thanh dưới chỉ hiện nút của chức năng người dùng được phép (Sao đỏ: chỉ Ghi nhận + Menu)
+  const vis = id => app.visibleTabs().some(t => t.id === id);
   const bottom = h('nav', { class: 'bottomnav', 'aria-label': 'Menu nhanh' },
-    navBtn('tong-quan', '🏠', 'Tổng quan'),
-    app.can('incident.create') ? navBtn('ghi-nhan', '📷', 'Ghi nhận', true) : navBtn('duyet', '🛡️', 'Duyệt'),
-    navBtn('kiem-tra', '✅', 'Kiểm tra'),
-    navBtn('bang-diem', '📊', 'Thi đua'),
+    vis('tong-quan') ? navBtn('tong-quan', '🏠', 'Tổng quan') : '',
+    app.can('incident.create') ? navBtn('ghi-nhan', '📷', 'Ghi nhận', true) : vis('duyet') ? navBtn('duyet', '🛡️', 'Duyệt') : '',
+    vis('kiem-tra') ? navBtn('kiem-tra', '✅', 'Kiểm tra') : '',
+    vis('bang-diem') ? navBtn('bang-diem', '📊', 'Thi đua') : '',
     h('button', { onclick: openMenu }, h('span', { class: 'ic' }, '☰'), 'Menu'));
   root.replaceChildren(top, h('div', { class: 'layout' }, side, main), bottom);
   window.onhashchange = render;
@@ -174,6 +235,7 @@ function navBtn(id, ic, label, fab) {
 
 function openMenu() {
   const grid = h('div', { class: 'menu-grid' }, app.visibleTabs().map(t => h('button', { onclick: () => { m.close(); app.nav(t.id); } }, h('span', { class: 'ic' }, t.ic), `${t.n}. ${t.short || t.title}`)),
+    app.user.has_password ? h('button', { onclick: () => { m.close(); openChangePassword(); } }, h('span', { class: 'ic' }, '🔑'), 'Đổi mật khẩu') : '',
     h('button', { onclick: () => { m.close(); logout(); } }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'));
   const m = modal({ title: 'Tất cả chức năng', body: grid });
 }
@@ -182,7 +244,9 @@ let renderSeq = 0;
 async function render() {
   const view = $('#view'); if (!view) return;
   const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'tong-quan';
-  const tab = TABS.find(t => t.id === id) || TABS[0];
+  let tab = TABS.find(t => t.id === id) || TABS[0];
+  // Mở vào chức năng không được phép (ví dụ Sao đỏ mở #/tong-quan) → chuyển sang chức năng đầu tiên được phép
+  if (!app.can(tab.perms) && app.visibleTabs().length) { const first = app.visibleTabs()[0]; if (location.hash !== '#/' + first.id) { location.replace(location.pathname + location.search + '#/' + first.id); return; } tab = first; }
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab.id));
   if (!app.can(tab.perms)) { view.replaceChildren(h('div', { class: 'notice red' }, 'Bạn không có quyền truy cập chức năng này.')); return; }
   const seq = ++renderSeq;

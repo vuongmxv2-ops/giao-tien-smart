@@ -66,7 +66,7 @@ main { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 28px); max-
 /* Thanh điều hướng dưới (điện thoại) – kính mờ */
 .bottomnav {
   position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); z-index: 40;
-  display: grid; grid-template-columns: repeat(5, 1fr); padding: 0 6px env(safe-area-inset-bottom);
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 0 6px env(safe-area-inset-bottom);
   background: rgba(255,255,255,.86); backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px);
   border-top: 1px solid rgba(226,232,240,.9); box-shadow: 0 -6px 24px -12px rgba(15,23,42,.18);
 }
@@ -162,7 +162,9 @@ main { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 28px); max-
 
 label.f { display: block; margin-bottom: 12px; }
 label.f > span { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 5px; font-weight: 600; }
-input[type=text], input[type=number], input[type=date], input[type=datetime-local], input[type=email], input[type=search], input[type=month], select, textarea {
+.pw-login { display: grid; gap: 10px; margin: 10px 0 4px; text-align: left; }
+.or-line { margin: 16px 0 10px; }
+input[type=text], input[type=number], input[type=date], input[type=datetime-local], input[type=email], input[type=search], input[type=month], input[type=password], select, textarea {
   width: 100%; border: 1.5px solid var(--line); border-radius: var(--radius-s); padding: 9px 12px; background: #fbfcfe; min-height: 44px;
   transition: border-color .15s, box-shadow .15s, background .15s;
 }

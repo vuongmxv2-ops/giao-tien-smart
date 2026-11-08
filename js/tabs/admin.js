@@ -7,7 +7,8 @@ const EXTRA_PERMS = [['incident.review', 'Duyệt minh chứng'], ['incident.adj
   ['appeal.manage', 'Xử lý phản hồi'], ['export.create', 'Xuất báo cáo'], ['score.lock', 'Khóa/mở khóa tuần']];
 const RULE_COLS = { code: ['Mã lỗi', 'code'], name: ['Nội dung lỗi', 'Nội dung', 'name'], kind: ['Loại', 'Cộng/Trừ', 'kind'], points: ['Điểm', 'points'], scope_type: ['Phạm vi', 'scope_type'],
   scope_value: ['Giá trị phạm vi', 'scope_value'], effective_from: ['Hiệu lực từ', 'effective_from'], effective_to: ['Hiệu lực đến', 'effective_to'], note: ['Ghi chú', 'note'] };
-const USER_COLS = { email: ['Email', 'email'], full_name: ['Họ và tên', 'Họ tên', 'full_name'], role: ['Vai trò', 'role'], campus_code: ['Cơ sở', 'campus_code'] };
+const USER_COLS = { email: ['Email', 'email'], full_name: ['Họ và tên', 'Họ tên', 'Sao đỏ', 'full_name'], role: ['Vai trò', 'role'], campus_code: ['Cơ sở', 'campus_code'],
+  username: ['Tên đăng nhập', 'username'], password: ['Mật khẩu', 'password'], class_name: ['Lớp', 'class_name'] };
 
 /** TAB 12 – QUẢN TRỊ – CÀI ĐẶT */
 export async function render(el, app) {
@@ -157,26 +158,33 @@ export async function render(el, app) {
         const users = await app.call('admin.users');
         body.replaceChildren(h('div', { class: 'actions', style: 'margin-bottom:8px' }, h('button', { class: 'btn sm primary', onclick: () => edit() }, '＋ Thêm tài khoản'), h('button', { class: 'btn sm', onclick: () => inp.click() }, 'Nhập từ Excel'),
           h('a', { class: 'btn sm ghost', href: 'templates/mau_tai_khoan.xlsx', download: '' }, 'Tải mẫu'), inp),
-          h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Đăng nhập bằng tài khoản Google; không có mật khẩu chung. Email không có trong danh sách sẽ bị từ chối.'),
-          table([{ label: 'Họ tên', key: 'full_name' }, { label: 'Email', key: 'email' }, { label: 'Vai trò', key: 'role_label' },
+          h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Thầy cô, BCH đăng nhập bằng tài khoản Google (email trong danh sách). Sao đỏ đăng nhập bằng Tên đăng nhập + mật khẩu: mật khẩu ban đầu 123456, bắt buộc đổi sang 6 chữ số ở lần đăng nhập đầu. Nhập từ Excel: tệp có cột Lớp, Sao đỏ (họ tên), Tên đăng nhập.'),
+          table([{ label: 'Họ tên', key: 'full_name' }, { label: 'Email / Tên đăng nhập', render: u => u.email || (u.username ? h('span', {}, '👤 ' + u.username, u.must_change_pw ? h('span', { class: 'badge yellow', style: 'margin-left:6px' }, 'chưa đổi MK') : '') : '—') }, { label: 'Vai trò', key: 'role_label' },
             { label: 'Phạm vi', render: u => u.scopes.map(s => s.scope_type === 'PERM' ? '+' + s.scope_value : s.scope_type + ':' + s.scope_value).join(', ') || '—' },
             { label: 'Đăng nhập gần nhất', render: u => fmtDateTime(u.last_login_at) }, { label: 'Trạng thái', render: u => badge(u.status) },
-            { label: '', render: u => h('button', { class: 'btn sm', onclick: async e => { e.stopPropagation(); const why = await askReason(u.status === 'ACTIVE' ? 'Khóa tài khoản ' + u.email : 'Mở khóa ' + u.email, { kind: u.status === 'ACTIVE' ? 'red' : 'primary' }); if (!why) return; try { await app.call('admin.setUserStatus', { user_id: u.user_id, status: u.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE', reason: why }); load(); } catch (er) { toast(er.message, 'err'); } } }, u.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa') }], users, { onRow: edit }));
+            { label: '', render: u => u.username ? h('button', { class: 'btn sm', onclick: e => { e.stopPropagation(); resetPw(u); } }, '🔑 Đặt lại MK') : '' },
+            { label: '', render: u => h('button', { class: 'btn sm', onclick: async e => { e.stopPropagation(); const why = await askReason(u.status === 'ACTIVE' ? 'Khóa tài khoản ' + (u.email || u.username) : 'Mở khóa ' + (u.email || u.username), { kind: u.status === 'ACTIVE' ? 'red' : 'primary' }); if (!why) return; try { await app.call('admin.setUserStatus', { user_id: u.user_id, status: u.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE', reason: why }); load(); } catch (er) { toast(er.message, 'err'); } } }, u.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa') }], users, { onRow: edit }));
       } catch (e) { errorBox(body, e, load); }
     };
+    async function resetPw(u) {
+      if (!await confirmBox('Đặt lại mật khẩu', `Đặt lại mật khẩu của ${u.full_name} (${u.username}) về 123456? Lần đăng nhập tới sẽ bắt buộc đổi mật khẩu mới.`, 'Đặt lại')) return;
+      try { await app.call('admin.resetPassword', { user_id: u.user_id }); toast(`Đã đặt lại: ${u.username} / 123456`, 'ok', 6000); load(); }
+      catch (er) { toast(er.message, 'err'); }
+    }
     function edit(u = { scopes: [] }) {
       const email = h('input', { type: 'email', value: u.email || '' }), name = h('input', { type: 'text', value: u.full_name || '' });
+      const uname = h('input', { type: 'text', value: u.username || '', placeholder: 'Ví dụ: sd6a1 (để trống nếu đăng nhập Google)', autocapitalize: 'none' });
       const role = h('select', {}, options(ROLES, { selected: u.role || 'RED_STAR' }));
       const campusBoxes = app.boot.campuses.map(c => h('label', { style: 'display:block' }, h('input', { type: 'checkbox', value: c.campus_id, checked: u.scopes.some(s => s.scope_type === 'CAMPUS' && s.scope_value === c.campus_id) }), ' ' + c.name));
       const classSel = h('select', { multiple: true, style: 'min-height:120px' }, app.boot.classes.map(c => h('option', { value: c.class_id, selected: u.scopes.some(s => s.scope_type === 'CLASS' && s.scope_value === c.class_id) }, c.name)));
       const permBoxes = EXTRA_PERMS.map(([p, l]) => h('label', { style: 'display:block' }, h('input', { type: 'checkbox', value: p, checked: u.scopes.some(s => s.scope_type === 'PERM' && s.scope_value === p) }), ' ' + l));
-      modal({ title: u.user_id ? 'Sửa tài khoản' : 'Thêm tài khoản', body: h('div', {}, field('Email Google', email), field('Họ và tên', name), field('Vai trò', role),
+      modal({ title: u.user_id ? 'Sửa tài khoản' : 'Thêm tài khoản', body: h('div', {}, field('Email Google', email), field('Tên đăng nhập (tài khoản mật khẩu – Sao đỏ)', uname, 'Tài khoản mới có tên đăng nhập được cấp mật khẩu ban đầu 123456, bắt đổi khi đăng nhập lần đầu.'), field('Họ và tên', name), field('Vai trò', role),
         field('Cơ sở được phân công (Sao đỏ/BCH)', h('div', {}, campusBoxes)), field('Lớp phụ trách (GVCN) – giữ Ctrl để chọn nhiều', classSel), field('Quyền bổ sung', h('div', {}, permBoxes))),
         actions: [{ label: 'Hủy' }, { label: 'Lưu', kind: 'primary', onClick: async () => {
           const scopes = [...campusBoxes.map(l => l.firstChild).filter(c => c.checked).map(c => ({ scope_type: 'CAMPUS', scope_value: c.value })),
             ...[...classSel.selectedOptions].map(o => ({ scope_type: 'CLASS', scope_value: o.value })),
             ...permBoxes.map(l => l.firstChild).filter(c => c.checked).map(c => ({ scope_type: 'PERM', scope_value: c.value }))];
-          await app.call('admin.saveUser', { user_id: u.user_id, email: email.value, full_name: name.value, role: role.value, scopes }); toast('Đã lưu tài khoản', 'ok'); load();
+          await app.call('admin.saveUser', { user_id: u.user_id, email: email.value, username: uname.value, full_name: name.value, role: role.value, scopes }); toast('Đã lưu tài khoản', 'ok'); load();
         } }] });
     }
     load();
