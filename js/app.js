@@ -1,5 +1,5 @@
 import { call, callSWR, clearSWR, setToken, hasToken, setAuthLostHandler, isMock } from './api.js';
-import { $, h, toast, loading, errorBox, modal } from './ui.js';
+import { $, h, toast, loading, errorBox, modal, confirmBox } from './ui.js';
 import * as outbox from './queue.js';
 
 const CFG = window.GTS_CONFIG || {};
@@ -41,8 +41,55 @@ const root = $('#app');
 /* Dữ liệu khởi động (lớp, lỗi, tuần…) được lưu trên máy để lần sau mở ứng dụng hiện ngay, rồi cập nhật ngầm từ máy chủ. */
 const BOOT_KEY = 'gts_boot';
 function saveBoot(b) { try { localStorage.setItem(BOOT_KEY, JSON.stringify({ at: Date.now(), boot: b })); } catch { /* bỏ qua */ } }
-function loadBoot() { try { const x = JSON.parse(localStorage.getItem(BOOT_KEY) || 'null'); return x && Date.now() - x.at < 7 * 864e5 ? x.boot : null; } catch { return null; } }
+function loadBoot() { try { const x = JSON.parse(localStorage.getItem(BOOT_KEY) || 'null'); return x && Date.now() - x.at < 60 * 864e5 ? x.boot : null; } catch { return null; } }
 function clearBoot() { try { localStorage.removeItem(BOOT_KEY); } catch { /* bỏ qua */ } clearSWR(); }
+
+/* ---------- Cài ứng dụng lên màn hình chính (chạy toàn màn hình như ứng dụng thường) ---------- */
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.querySelectorAll('.install-btn').forEach(b => { b.hidden = false; }); });
+addEventListener('appinstalled', () => { installEvt = null; document.querySelectorAll('.install-btn').forEach(b => { b.hidden = true; }); toast('✔ Đã cài ứng dụng. Lần sau mở bằng biểu tượng Giao Tiến Smart trên màn hình chính.', 'ok', 6000); });
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isMobile = () => /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || isIOS();
+
+async function installApp() {
+  if (installEvt) {
+    installEvt.prompt();
+    const r = await installEvt.userChoice.catch(() => null);
+    installEvt = null;
+    if (r && r.outcome === 'accepted') return;
+  }
+  const steps = isIOS()
+    ? ['Mở trang này bằng Safari (không dùng Zalo/Facebook).', 'Bấm nút Chia sẻ ⬆️ ở thanh dưới cùng.', 'Chọn "Thêm vào MH chính" (Add to Home Screen).', 'Bấm "Thêm". Biểu tượng Giao Tiến Smart sẽ xuất hiện trên màn hình chính.']
+    : ['Mở trang này bằng Chrome (không dùng Zalo/Facebook).', 'Bấm nút ⋮ ở góc trên bên phải.', 'Chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính".', 'Bấm "Cài đặt". Biểu tượng Giao Tiến Smart sẽ xuất hiện trên màn hình chính.'];
+  modal({ title: '📲 Cài Giao Tiến Smart lên điện thoại', body: h('div', {},
+    h('ol', {}, steps.map(s => h('li', { style: 'margin-bottom:6px' }, s))),
+    h('div', { class: 'notice green' }, 'Sau khi cài: bấm biểu tượng là vào thẳng, không phải gõ địa chỉ và không phải đăng nhập lại (phiên đăng nhập tự gia hạn khi dùng thường xuyên).')),
+    actions: [{ label: 'Đã hiểu', kind: 'primary' }] });
+}
+function installBtn(cls) {
+  return h('button', { class: 'install-btn ' + (cls || ''), hidden: isStandalone() || (!installEvt && !isMobile()), onclick: installApp }, h('span', { class: 'ic' }, '📲'), 'Cài ứng dụng');
+}
+/** Gợi ý cài ứng dụng một lần trên điện thoại (chưa cài, chưa từng bấm "Để sau"). */
+function maybeSuggestInstall() {
+  if (isStandalone() || !isMobile()) return;
+  try { if (localStorage.getItem('gts_install_later')) return; } catch { return; }
+  if (document.querySelector('.install-bar')) return;
+  const bar = h('div', { class: 'update-bar install-bar', style: 'white-space:normal;flex-wrap:wrap;justify-content:center;text-align:center;width:calc(100% - 24px);max-width:520px;border-radius:16px;padding:10px 12px' },
+    h('span', { style: 'flex-basis:100%' }, '📲 Cài Giao Tiến Smart lên màn hình chính để mở nhanh như ứng dụng.'),
+    h('button', { class: 'btn sm primary', onclick: () => { bar.remove(); installApp(); } }, 'Cài ngay'),
+    h('button', { class: 'btn sm ghost', onclick: () => { bar.remove(); try { localStorage.setItem('gts_install_later', '1'); } catch { /* bỏ qua */ } } }, 'Để sau'));
+  document.body.append(bar);
+}
+
+async function logoutAll() {
+  if (!await confirmBox('Đăng xuất khỏi mọi thiết bị?', 'Tất cả điện thoại, máy tính đang đăng nhập tài khoản này (kể cả máy này) sẽ phải đăng nhập lại. Dùng khi bị mất điện thoại hoặc nghi lộ tài khoản.', 'Đăng xuất tất cả', 'red')) return;
+  try { await call('auth.logoutAll'); } catch (e) { if (e.code !== 'AUTH_REQUIRED') return toast(e.message, 'err'); }
+  setToken(''); clearBoot();
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  toast('Đã đăng xuất khỏi mọi thiết bị.', 'ok');
+  showLogin();
+}
 
 async function start() {
   setAuthLostHandler(() => { clearBoot(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warn'); showLogin(); });
@@ -209,8 +256,10 @@ function renderShell() {
     h('div', { class: 'who' }, h('b', {}, u.full_name), u.role_label, h('br'), net, isMock() ? h('span', { class: 'netbadge', style: 'background:#f9a825;color:#000' }, 'THỬ NGHIỆM') : ''));
   const side = h('nav', { class: 'sidebar', 'aria-label': 'Menu chính' },
     app.visibleTabs().map(t => h('button', { 'data-tab': t.id, onclick: () => app.nav(t.id) }, h('span', { class: 'ic' }, t.ic), `${t.n}. ${t.title}`)),
+    installBtn(),
     u.has_password ? h('button', { onclick: openChangePassword }, h('span', { class: 'ic' }, '🔑'), 'Đổi mật khẩu') : '',
-    h('button', { onclick: logout }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'));
+    h('button', { onclick: logout }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'),
+    h('button', { onclick: logoutAll }, h('span', { class: 'ic' }, '📵'), 'Đăng xuất mọi thiết bị'));
   const main = h('main', { id: 'view' });
   // Thanh dưới chỉ hiện nút của chức năng người dùng được phép (Sao đỏ: chỉ Ghi nhận + Menu)
   const vis = id => app.visibleTabs().some(t => t.id === id);
@@ -227,6 +276,7 @@ function renderShell() {
   prefetchTabs();
   outbox.cleanup().catch(() => {});
   if (navigator.onLine) outbox.sendAll().catch(() => {});
+  setTimeout(maybeSuggestInstall, 2500);
 }
 
 function navBtn(id, ic, label, fab) {
@@ -235,8 +285,10 @@ function navBtn(id, ic, label, fab) {
 
 function openMenu() {
   const grid = h('div', { class: 'menu-grid' }, app.visibleTabs().map(t => h('button', { onclick: () => { m.close(); app.nav(t.id); } }, h('span', { class: 'ic' }, t.ic), `${t.n}. ${t.short || t.title}`)),
+    (() => { const b = installBtn(); b.addEventListener('click', () => m.close()); return b; })(),
     app.user.has_password ? h('button', { onclick: () => { m.close(); openChangePassword(); } }, h('span', { class: 'ic' }, '🔑'), 'Đổi mật khẩu') : '',
-    h('button', { onclick: () => { m.close(); logout(); } }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'));
+    h('button', { onclick: () => { m.close(); logout(); } }, h('span', { class: 'ic' }, '↩'), 'Đăng xuất'),
+    h('button', { onclick: () => { m.close(); logoutAll(); } }, h('span', { class: 'ic' }, '📵'), 'Đăng xuất mọi thiết bị'));
   const m = modal({ title: 'Tất cả chức năng', body: grid });
 }
 
