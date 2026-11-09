@@ -46,7 +46,22 @@ export async function callSWR(action, payload, onData) {
 }
 export function clearSWR() { try { localStorage.removeItem(SWR_KEY); } catch { /* bỏ qua */ } }
 
+/**
+ * Gọi máy chủ. Khi máy chủ báo BẬN (nhiều người gửi cùng lúc – lỗi xảy ra TRƯỚC khi ghi dữ liệu nên gửi lại an toàn)
+ * thì tự đợi rồi gửi lại tối đa 3 lần, người dùng không phải bấm lại.
+ */
 export async function call(action, payload = {}, opts = {}) {
+  const waits = [1500, 3500, 7000];
+  for (let i = 0; ; i++) {
+    try { return await call1(action, payload, opts); }
+    catch (e) {
+      if (e.code !== 'BUSY' || i >= waits.length) throw e;
+      await new Promise(r => setTimeout(r, waits[i] + Math.random() * 1000));
+    }
+  }
+}
+
+async function call1(action, payload, opts) {
   const body = JSON.stringify({ action, token, payload });
   let text;
   if (isMock()) text = await mockTransport(body);
