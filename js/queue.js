@@ -68,19 +68,31 @@ export async function send(id) {
   } catch (e) {
     rec.state = 'error'; rec.error = e.message; rec.error_code = e.code || ''; rec.stage = '';
     await put(rec); emit(rec);
+    if (retryable(e)) scheduleRetry();
     throw e;
   }
 }
 
+let retryTimer = null;
+const retryable = e => e && (e.isNetwork || e.code === 'BUSY');
+
 export async function sendAll() {
   if (running) return;
   running = true;
+  let again = false;
   try {
     for (const r of await list()) {
       if (r.state === 'done') continue;
-      try { await send(r.id); } catch (e) { if (e.isNetwork) break; }
+      try { await send(r.id); } catch (e) { if (retryable(e)) { again = true; break; } }
     }
   } finally { running = false; }
+  if (again) scheduleRetry();
+}
+
+/** Còn bản chưa gửi do mạng yếu / máy chủ bận: tự thử lại sau 30 giây khi ứng dụng còn mở. */
+function scheduleRetry() {
+  if (retryTimer) return;
+  retryTimer = setTimeout(() => { retryTimer = null; if (navigator.onLine) sendAll().catch(() => {}); }, 30000);
 }
 
 /** Xóa các bản đã gửi xong quá 3 ngày. */
