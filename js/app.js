@@ -142,7 +142,7 @@ function showLogin(message) {
   const msg = h('div', { class: 'notice red', hidden: !message }, message || '');
   const btnBox = h('div', { id: 'gbtn', style: 'display:flex;justify-content:center;min-height:44px' });
   // Đăng nhập bằng tên đăng nhập + mật khẩu (Sao đỏ: sd6a1, sd6a2…)
-  const uname = h('input', { type: 'text', placeholder: 'Tên đăng nhập, ví dụ: sd6a1', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false' });
+  const uname = h('input', { type: 'text', placeholder: 'Tên đăng nhập, ví dụ: sd6a1, gv6a1', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false' });
   const pw = h('input', { type: 'password', placeholder: 'Mật khẩu (6 chữ số)', autocomplete: 'current-password', inputmode: 'numeric', maxlength: 20 });
   const pwForm = h('form', { class: 'pw-login', onsubmit: e => { e.preventDefault(); doPasswordLogin(uname.value, pw.value, msg); } },
     uname, pw, h('button', { class: 'btn primary block', type: 'submit' }, 'Đăng nhập'));
@@ -152,9 +152,9 @@ function showLogin(message) {
     h('h1', {}, 'GIAO TIẾN SMART'),
     h('div', { class: 'muted' }, 'Hệ thống quản lý nề nếp Liên đội'),
     msg,
-    h('p', { class: 'small muted' }, 'Sao đỏ: đăng nhập bằng tên đăng nhập và mật khẩu được cấp.'),
+    h('p', { class: 'small muted' }, 'Sao đỏ, giáo viên chủ nhiệm: đăng nhập bằng tên đăng nhập và mật khẩu được cấp.'),
     pwForm,
-    h('div', { class: 'or-line small muted' }, 'hoặc – Thầy cô, BCH đăng nhập bằng tài khoản Google'),
+    h('div', { class: 'or-line small muted' }, 'hoặc – đăng nhập bằng tài khoản Google đã được cấp quyền'),
     btnBox));
   root.replaceChildren(card);
   if (isMock()) return mockLogin(btnBox, msg);
@@ -265,7 +265,8 @@ function renderShell() {
   const vis = id => app.visibleTabs().some(t => t.id === id);
   const bottom = h('nav', { class: 'bottomnav', 'aria-label': 'Menu nhanh' },
     vis('tong-quan') ? navBtn('tong-quan', '🏠', 'Tổng quan') : '',
-    app.can('incident.create') ? navBtn('ghi-nhan', '📷', 'Ghi nhận', true) : vis('duyet') ? navBtn('duyet', '🛡️', 'Duyệt') : '',
+    app.can('incident.create') ? navBtn('ghi-nhan', '📷', 'Ghi nhận', true) : vis('duyet') ? navBtn('duyet', '🛡️', 'Duyệt')
+      : u.role === 'HOMEROOM_TEACHER' && vis('thong-bao') ? navBtn('thong-bao', '📋', 'Vi phạm lớp') : '',
     vis('kiem-tra') ? navBtn('kiem-tra', '✅', 'Kiểm tra') : '',
     vis('bang-diem') ? navBtn('bang-diem', '📊', 'Thi đua') : '',
     h('button', { onclick: openMenu }, h('span', { class: 'ic' }, '☰'), 'Menu'));

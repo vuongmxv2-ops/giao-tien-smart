@@ -11,7 +11,7 @@ export async function render(el, app) {
   const body = h('div');
   el.append(tabs, body);
   const views = [['tb', 'Thông báo'], ['ph', 'Phản hồi – Kiến nghị'], ...(teacher || app.can('incident.view') ? [['vp', 'Vi phạm của lớp']] : [])];
-  let cur = 'tb';
+  let cur = teacher ? 'vp' : 'tb'; // GVCN mở thẳng danh sách vi phạm của lớp
   views.forEach(([k, l]) => tabs.append(h('button', { type: 'button', class: k === cur ? 'on DAT' : '', onclick: e => { cur = k; [...tabs.children].forEach(x => x.className = ''); e.target.className = 'on DAT'; show(); } }, l)));
 
   function show() { ({ tb: notices, ph: appeals, vp: classIncidents })[cur](); }
@@ -77,16 +77,28 @@ export async function render(el, app) {
       actions: [{ label: 'Hủy' }, { label: 'Lưu', kind: 'primary', onClick: async () => { await app.call('appeal.update', { appeal_id: a.appeal_id, status: st.value, response: resp.value }); toast('Đã cập nhật', 'ok'); appeals(); } }] });
   }
 
+  // Vi phạm/tuyên dương đã duyệt của lớp, lọc theo tuần (mặc định tuần hiện tại) – để GVCN, tổ trưởng đối chiếu sổ (SĐ)
+  let vpWeek = b.current_week?.week_id || '';
   async function classIncidents() {
-    loading(body);
+    const weekSel = h('select', {}, options((b.weeks || []).map(w => ({ value: w.week_id, label: app.weekLabel(w) })), { selected: vpWeek, empty: 'Tất cả các tuần' }));
+    weekSel.addEventListener('change', () => { vpWeek = weekSel.value; classIncidents(); });
+    const box = h('div');
+    body.replaceChildren(h('div', { class: 'filters' }, field('Tuần thi đua', weekSel)), box);
+    loading(box);
     try {
-      const r = await app.call('incident.list', { status: 'DA_DUYET', limit: 100 });
-      body.replaceChildren(h('div', { class: 'card' }, r.items.length ? h('div', { class: 'list' }, r.items.map(i => h('div', { class: 'item' },
-        h('div', { class: 'grow' }, h('b', {}, `${i.class_name} – ${i.type_name}`), h('div', { class: 'small muted' }, fmtDateTime(i.occurred_at), ' · Điểm: ', signed(i.approved_points))),
-        i.evidence.length ? h('button', { class: 'btn sm', onclick: () => viewEvidence(app, i) }, 'Ảnh') : '',
-        app.can(['appeal.create', 'appeal.manage']) ? h('button', { class: 'btn sm', onclick: () => newAppeal(i) }, 'Phản hồi') : '')))
-        : h('div', { class: 'empty' }, 'Chưa có vi phạm đã duyệt.')));
-    } catch (e) { errorBox(body, e, classIncidents); }
+      const r = await app.call('incident.list', { status: 'DA_DUYET', week_id: vpWeek || undefined, limit: 300 });
+      const total = r.items.reduce((s, i) => s + Number(i.approved_points || 0), 0);
+      box.replaceChildren(h('div', { class: 'card' },
+        r.items.length ? h('div', { class: 'small muted', style: 'margin-bottom:8px' }, `${r.items.length} bản ghi · Tổng điểm: ${signed(Math.round(total * 100) / 100)}`) : '',
+        r.items.length ? h('div', { class: 'list' }, r.items.map(i => h('div', { class: 'item' },
+          h('div', { class: 'grow' }, h('b', {}, `${i.class_name} – ${i.type_name}`),
+            i.student_name && i.student_name !== '(đã xác định)' ? h('div', {}, '👤 ', i.student_name) : '',
+            h('div', { class: 'small muted' }, fmtDateTime(i.occurred_at), ' · Điểm: ', signed(i.approved_points), i.submitted_by_name ? ' · Người ghi: ' + i.submitted_by_name : ''),
+            i.note ? h('div', { class: 'small muted' }, 'Ghi chú: ', i.note) : ''),
+          i.evidence.length ? h('button', { class: 'btn sm', onclick: () => viewEvidence(app, i) }, '🖼️ Ảnh') : '',
+          app.can(['appeal.create', 'appeal.manage']) ? h('button', { class: 'btn sm', onclick: () => newAppeal(i) }, 'Phản hồi') : '')))
+        : h('div', { class: 'empty' }, vpWeek ? 'Tuần này lớp chưa có bản ghi nào đã duyệt.' : 'Chưa có bản ghi nào đã duyệt.')));
+    } catch (e) { errorBox(box, e, classIncidents); }
   }
 
   show();
