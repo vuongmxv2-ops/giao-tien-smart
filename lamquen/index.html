@@ -725,7 +725,7 @@ function drawMatchEnd(anim) {
 /* ---------- Thi đấu nhiều máy: 5 ô ----------
    Màn hình chính (host) và điện thoại (người chơi) nói chuyện qua máy chủ MQTT công cộng.
    Chỉ gửi tên người chơi, tên thầy cô và đáp án; ảnh không gửi đi. */
-const LIVE_N = 5, LIVE_T = 60, TOPIC = 'lamquen-thayco/v1/';
+const LIVE_N = 5, LIVE_DECOY = 5, LIVE_T = 60, TOPIC = 'lamquen-thayco/v1/';
 const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
 const LIB_MQTT = ['https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5/dist/mqtt.min.js'];
 const LIB_QR = ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', 'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js'];
@@ -847,7 +847,8 @@ function newRound() {
     people.push(p); names.add(p.ten); me.used.add(p.id);
   }
   me.r++;
-  me.round = { people, names: shuffle(people.map(p => p.ten)), subs: {} };
+  const decoys = [...new Set(shuffle(L.filter(p => !names.has(p.ten))).map(p => p.ten))].slice(0, LIVE_DECOY);   // tên gây nhiễu
+  me.round = { people, names: shuffle([...people.map(p => p.ten), ...decoys]), subs: {} };
   Object.values(me.players).forEach(p => p.last = null);
   clearInterval(me.ti); me.left = LIVE_T;
   me.ph = 'play'; pubState(true); drawHost(); beep('go');
@@ -908,7 +909,7 @@ function drawHost() {
       ${local && !window.DIA_CHI_WEB ? '<div class="warn">⚠️ Phần mềm đang chạy trên máy tính này nên điện thoại chưa mở được đường link. Cần đưa phần mềm lên mạng (GitHub Pages) để điện thoại tham gia.</div>' : ''}
       <div class="chips" id="hPlayers"></div>
       <div style="margin-top:20px"><button class="lvbtn" id="hStart">▶ Bắt đầu vòng 1</button></div>
-      <div style="opacity:.8;margin-top:10px;font-size:15px">Mỗi vòng có ${LIVE_N} ảnh, ${LIVE_T} giây. Mỗi ô đúng được 100 điểm; 3 người đúng cả 5 ô nhanh nhất được thưởng thêm 50/30/20 điểm.</div>
+      <div style="opacity:.8;margin-top:10px;font-size:15px">Mỗi vòng có ${LIVE_N} ảnh, ${LIVE_T} giây; điện thoại hiện ${LIVE_N + LIVE_DECOY} tên, trong đó ${LIVE_DECOY} tên gây nhiễu. Mỗi ô đúng được 100 điểm; 3 người đúng cả 5 ô nhanh nhất được thưởng thêm 50/30/20 điểm.</div>
     </div></div>`;
   } else if (me.ph === 'play' || me.ph === 'reveal') {
     const rv = me.ph === 'reveal', ns = Object.keys(R.subs).length;
@@ -1003,7 +1004,7 @@ function drawPlayer() {
         <div style="text-align:center;margin-top:14px;font-weight:700;color:var(--ok)">${ok ? '✅ Đã nộp! Chờ công bố đáp án trên màn hình chính…' : '📨 Đang gửi bài…'}</div></div>`);
       return;
     }
-    plShow(`${hello}<div class="pcard"><h3>Vòng ${r}: Ô nào là ai?</h3><div class="muted" style="margin-bottom:10px">Nhìn 5 ảnh trên màn hình chính 👀 Chọn ô, rồi chạm vào tên.</div>
+    plShow(`${hello}<div class="pcard"><h3>Vòng ${r}: Ô nào là ai?</h3><div class="muted" style="margin-bottom:10px">Nhìn 5 ảnh trên màn hình chính 👀 Chọn ô, rồi chạm vào tên.${st.names.length > LIVE_N ? ` Cẩn thận: có ${st.names.length - LIVE_N} tên gây nhiễu!` : ''}</div>
       <div class="slots">${slots}</div>
       <div class="nchips">${st.names.map(n => `<button class="nchip ${picks.includes(n) ? 'used' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
       <button class="btn" id="pSend" ${picks.every(Boolean) ? '' : 'disabled style="opacity:.5"'}>📨 Nộp bài</button></div>`);
