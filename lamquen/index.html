@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Làm quen thầy cô</title>
+<style>
+  :root{--c:#0f766e;--c2:#14b8a6;--bg:#f1f5f4;--card:#fff;--tx:#1f2937;--mu:#6b7280;--ok:#16a34a;--no:#dc2626;--r:16px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);display:flex;flex-direction:column}
+  header{background:linear-gradient(135deg,var(--c),var(--c2));color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px}
+  header h1{margin:0;font-size:19px}
+  header .sub{font-size:13px;opacity:.9;margin-top:2px}
+  .bar{height:6px;background:rgba(255,255,255,.3);border-radius:9px;margin-top:8px;overflow:hidden}
+  .bar i{display:block;height:100%;background:#fff;width:0;transition:width .4s}
+  main{flex:1;overflow-y:auto;padding:14px 14px 90px}
+  .view{display:none;max-width:520px;margin:0 auto}
+  .view.on{display:block}
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:1px solid #e5e7eb;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+  nav button{flex:1;border:0;background:none;padding:8px 0 10px;font-size:12px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px}
+  nav button b{font-size:22px;font-weight:400}
+  nav button.on{color:var(--c);font-weight:600}
+  .btn{border:0;border-radius:12px;padding:13px 16px;font-size:16px;font-weight:600;background:var(--c);color:#fff;width:100%}
+  .btn.gray{background:#e5e7eb;color:var(--tx)}
+  .btn.red{background:#fee2e2;color:var(--no)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .panel{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .panel h3{margin:0 0 8px;font-size:16px}
+  .muted{color:var(--mu);font-size:13px}
+  .empty{text-align:center;padding:40px 10px;color:var(--mu)}
+  .seg{display:flex;background:#e5e7eb;border-radius:12px;padding:3px;margin-bottom:12px}
+  .seg button{flex:1;border:0;background:none;padding:9px 4px;border-radius:10px;font-size:14px;color:var(--mu)}
+  .seg button.on{background:#fff;color:var(--c);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  /* Thẻ lật */
+  .flip{perspective:1200px;margin-bottom:14px}
+  .flip .in{position:relative;width:100%;aspect-ratio:3/4;transition:transform .5s;transform-style:preserve-3d}
+  .flip.show .in{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+  .face img{width:100%;height:100%;object-fit:cover;display:block}
+  .face .hint{position:absolute;bottom:0;left:0;right:0;padding:30px 12px 12px;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;text-align:center;font-size:14px}
+  .back{transform:rotateY(180deg);display:flex;flex-direction:column}
+  .back img{height:62%;flex:none}
+  .back .info{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;text-align:center}
+  .back .ten{font-size:24px;font-weight:700;color:var(--c)}
+  .tag{display:inline-block;background:#ccfbf1;color:var(--c);border-radius:99px;padding:3px 10px;font-size:13px;margin:6px 3px 0}
+  /* Đố */
+  .qimg{width:100%;aspect-ratio:1;object-fit:cover;border-radius:20px;display:block;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.12);margin-bottom:12px}
+  .qname{background:#fff;border-radius:20px;padding:22px 12px;text-align:center;font-size:24px;font-weight:700;color:var(--c);margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+  .opts{display:grid;gap:10px}
+  .opt{border:2px solid #e5e7eb;background:#fff;border-radius:14px;padding:14px;font-size:17px;text-align:left;color:var(--tx)}
+  .opts.pics{grid-template-columns:1fr 1fr}
+  .opt.pic{padding:0;overflow:hidden;aspect-ratio:1}
+  .opt.pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .opt.ok{border-color:var(--ok);background:#dcfce7}
+  .opt.no{border-color:var(--no);background:#fee2e2}
+  .opt.pic.ok{box-shadow:0 0 0 4px var(--ok)} .opt.pic.no{box-shadow:0 0 0 4px var(--no);opacity:.6}
+  .score{display:flex;justify-content:space-between;font-size:14px;color:var(--mu);margin-bottom:10px}
+  .score b{color:var(--tx)}
+  .fb{min-height:26px;text-align:center;font-weight:600;margin:10px 0}
+  /* Danh bạ */
+  input[type=search],input[type=text],select{width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:16px;background:#fff}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .pc{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);border:0;padding:0;text-align:left}
+  .pc img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+  .pc div{padding:6px 7px;font-size:12.5px;line-height:1.3}
+  .pc small{color:var(--mu)}
+  .pc .dot{float:right;font-size:11px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:9;padding:20px}
+  .modal.on{display:flex}
+  .modal .box{background:#fff;border-radius:20px;overflow:hidden;max-width:420px;width:100%}
+  .modal img{width:100%;max-height:65vh;object-fit:cover;display:block}
+  .modal .info{padding:14px;text-align:center}
+  label.f{display:block;font-size:14px;font-weight:600;margin:10px 0 6px}
+  .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+  .stat div{background:#f0fdfa;border-radius:12px;padding:10px 4px}
+  .stat b{display:block;font-size:22px;color:var(--c)}
+  .stat span{font-size:12px;color:var(--mu)}
+  .face img,.qimg,.opt.pic img,.pc img,.modal img{object-position:50% 22%}
+  /* Mini game */
+  .gstart,.gend{text-align:center}
+  .gicon{font-size:68px;display:inline-block;animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-8px) rotate(-8deg)}}
+  .gstart h2,.gend h2{margin:6px 0;font-size:25px;color:var(--c)}
+  .rules{display:flex;gap:8px;justify-content:center;margin:16px 0 10px}
+  .rules div{flex:1;background:#fff;border-radius:14px;padding:10px 4px;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .rules b{display:block;font-size:22px;color:var(--c)}
+  .best{margin:12px 0 0;font-size:16px}
+  .btn.big{font-size:21px;padding:17px;margin-top:18px;background:linear-gradient(135deg,#f59e0b,#ef4444);box-shadow:0 6px 0 #b91c1c;animation:pulse 1.4s infinite}
+  .btn.big:active{transform:translateY(4px);box-shadow:0 2px 0 #b91c1c;animation:none}
+  @keyframes pulse{50%{transform:scale(1.04)}}
+  .sound{border:0;background:none;color:var(--mu);margin-top:16px;font-size:14px}
+  .count{font-size:120px;font-weight:900;color:var(--c);text-align:center;padding-top:90px;animation:zoom .65s ease-out}
+  @keyframes zoom{from{transform:scale(2.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .ghead{display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-bottom:6px}
+  .gscore{font-size:26px;font-weight:900;color:var(--c);display:inline-block}
+  .gscore.pop{animation:pop .45s}
+  @keyframes pop{50%{transform:scale(1.5);color:#f59e0b}}
+  .combo{color:#ea580c;font-weight:900;min-width:60px;text-align:right;font-size:17px}
+  .dots{display:flex;gap:5px;margin-bottom:8px}
+  .dots i{flex:1;height:8px;border-radius:9px;background:#d1d5db;transition:background .3s}
+  .dots i.cur{background:#93c5fd}.dots i.ok{background:var(--ok)}.dots i.no{background:var(--no)}
+  .timer{position:relative;height:12px;background:#e5e7eb;border-radius:9px;overflow:hidden;margin-bottom:10px}
+  .timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#22c55e,#84cc16);transition:width .1s linear}
+  .timer i.warn{background:linear-gradient(90deg,#ef4444,#f97316);animation:blink .4s infinite alternate}
+  @keyframes blink{to{opacity:.55}}
+  .qlabel{text-align:center;font-weight:700;color:var(--mu);margin-bottom:8px;font-size:16px;min-height:22px}
+  .qwrap{animation:slidein .35s ease-out}
+  @keyframes slidein{from{transform:translateX(50px);opacity:0}}
+  .qwrap.shake{animation:shake .4s}
+  @keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+  .qwrap .qimg{aspect-ratio:auto;height:min(36vh,300px)}
+  .qwrap .opt{transition:transform .1s}
+  .qwrap .opt:active{transform:scale(.97)}
+  .qwrap .opt:disabled{color:var(--tx);opacity:1}
+  .qwrap .opt.pic.no:disabled{opacity:.6}
+  .float{position:fixed;left:50%;top:38%;transform:translateX(-50%);font-size:40px;font-weight:900;color:var(--ok);pointer-events:none;animation:floatup 1.1s ease-out forwards;z-index:8;text-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap}
+  .float small{display:block;font-size:20px;color:#ea580c;text-align:center}
+  @keyframes floatup{from{transform:translate(-50%,10px) scale(.6)}30%{transform:translate(-50%,0) scale(1.15)}to{transform:translate(-50%,-90px);opacity:0}}
+  .stars span{font-size:56px;color:#d1d5db;display:inline-block;margin:0 2px}
+  .stars span.on{color:#f59e0b;animation:starin .55s backwards;text-shadow:0 2px 8px rgba(245,158,11,.5)}
+  @keyframes starin{from{transform:scale(0) rotate(-200deg)}}
+  .big-score{font-size:60px;font-weight:900;color:var(--c);line-height:1;margin-top:6px}
+  .rec{display:inline-block;margin-top:10px;background:#fef3c7;color:#b45309;padding:6px 16px;border-radius:99px;font-weight:800;animation:pulse 1s infinite}
+  .wlist{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .wlist div{text-align:center;font-size:12.5px}
+  .wlist img{width:100%;aspect-ratio:1;object-fit:cover;object-position:50% 22%;border-radius:10px;display:block;margin-bottom:3px}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:20}
+  /* Chọn trò chơi */
+  .hub{display:grid;gap:12px;margin-top:14px}
+  .gcard{background:#fff;border-radius:18px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;gap:14px;align-items:center;text-align:left;border:0;width:100%;color:var(--tx);transition:transform .1s}
+  .gcard:active{transform:scale(.97)}
+  .gcard .ic{font-size:46px;flex:none}
+  .gcard h3{margin:0 0 4px;font-size:18px;color:var(--c)}
+  .gcard p{margin:0;font-size:13px;color:var(--mu);line-height:1.4}
+  .gcard .rc{display:block;margin-top:4px;font-size:12.5px;color:#b45309}
+  .gcard .go{margin-left:auto;font-size:28px;color:#f59e0b;flex:none}
+  .mini{border:0;background:#e5e7eb;border-radius:99px;padding:6px 12px;font-size:13px;color:var(--tx)}
+  /* Ghép thẻ */
+  .mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;perspective:1000px;max-width:min(100%,calc((100vh - 275px) * .6 + 21px));margin:0 auto}
+  .mc{aspect-ratio:3/4;cursor:pointer;transition:opacity .45s,transform .45s}
+  .mc .in{position:relative;width:100%;height:100%;transition:transform .4s;transform-style:preserve-3d}
+  .mc.up .in,.mc.match .in,.mc.bad .in,.mc.gone .in{transform:rotateY(180deg)}
+  .mback,.mfront{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .mback{background:linear-gradient(135deg,var(--c),var(--c2));color:rgba(255,255,255,.9);font-size:28px;font-weight:900;border:3px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.18)}
+  .mfront{transform:rotateY(180deg);background:#fff;border:3px solid #e5e7eb}
+  .mfront img{width:100%;height:100%;object-fit:cover;object-position:50% 22%}
+  .mfront.ten{background:#fffbeb;border-color:#fcd34d;padding:4px;text-align:center;font-size:12.5px;font-weight:700;line-height:1.25;color:#92400e}
+  .mc.match .mfront{border-color:var(--ok);box-shadow:inset 0 0 0 2px var(--ok)}
+  .mc.bad .mfront{border-color:var(--no)}
+  .mc.bad{animation:shake .4s}
+  .mc.gone{opacity:0;transform:scale(.3) rotate(20deg);pointer-events:none}
+  /* Thi đấu nhiều máy (5 ô) */
+  #live{display:none;position:fixed;inset:0;z-index:30;background:linear-gradient(160deg,#0f766e,#134e4a);color:#fff;overflow-y:auto}
+  body.live #live{display:block}
+  .lv{max-width:1280px;margin:0 auto;padding:16px 20px 30px}
+  .lvtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .lvtop h2{margin:0;font-size:22px;flex:1;min-width:180px}
+  .code{background:#fff;color:var(--c);border-radius:12px;padding:4px 14px;font-weight:900;font-size:26px;letter-spacing:4px}
+  .lvbtn{border:0;border-radius:14px;padding:13px 22px;font-size:18px;font-weight:800;background:#f59e0b;color:#fff;box-shadow:0 5px 0 #b45309;cursor:pointer}
+  .lvbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #b45309}
+  .lvbtn:disabled{opacity:.5}
+  .lvbtn.gray{background:rgba(255,255,255,.18);box-shadow:none;font-size:15px;padding:9px 14px}
+  .lobby{display:grid;grid-template-columns:auto 1fr;gap:30px;align-items:center;margin-top:24px}
+  .qr{background:#fff;border-radius:16px;padding:10px;width:300px}
+  .qr svg{display:block;width:100%;height:auto}
+  .qr.mini{width:96px;padding:5px;border-radius:10px;flex:none}
+  .late{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.95}
+  .big{font-size:30px;font-weight:900;margin-bottom:6px}
+  .link{word-break:break-all;font-size:14px;opacity:.85}
+  .warn{background:#fef3c7;color:#92400e;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .chip{background:rgba(255,255,255,.18);border-radius:99px;padding:5px 13px;font-size:16px}
+  .chip.ok{background:#16a34a}
+  .lvsub{font-size:22px;font-weight:700;margin:16px 0 8px;text-align:center}
+  .lvtimer{height:14px;background:rgba(255,255,255,.2);border-radius:9px;overflow:hidden}
+  .lvtimer i{display:block;height:100%;width:100%;background:#fbbf24;transition:width 1s linear}
+  .boxes{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:18px 0}
+  .bx{background:#fff;border-radius:18px;overflow:hidden;color:var(--tx);position:relative;animation:popin .45s backwards;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  @keyframes popin{from{transform:scale(.3);opacity:0}}
+  .bx img{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:50% 22%;display:block}
+  .bx .no{position:absolute;top:8px;left:8px;background:#f59e0b;color:#fff;font-weight:900;font-size:26px;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .bx .nm{padding:10px 6px;text-align:center;font-weight:800;font-size:clamp(14px,1.6vw,20px);color:var(--c);min-height:24px}
+  .bx .nm.hid{color:#cbd5e1;font-size:26px}
+  .bx .pct{display:block;font-size:13px;color:var(--mu);font-weight:600;margin-top:2px}
+  .lvrow{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:20px}
+  .lvrow .chips{flex:1;margin:0}
+  .board{background:rgba(255,255,255,.1);border-radius:18px;padding:10px;margin:14px 0}
+  .board .r{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;font-size:20px}
+  .board .r:nth-child(odd){background:rgba(255,255,255,.07)}
+  .board .rk{width:40px;font-weight:900;text-align:center}
+  .board .pn{flex:1;font-weight:600}
+  .board .pp{color:#86efac;font-size:16px}
+  .board .pt{font-weight:900;min-width:70px;text-align:right;color:#fde68a}
+  .podium{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:30px 0 10px}
+  .pd{text-align:center;width:min(30%,220px);animation:popin .6s backwards}
+  .pd .pm{font-size:54px}
+  .pd .pn{font-weight:800;font-size:20px;margin:4px 0}
+  .pd .pt{color:#fde68a;font-weight:900;font-size:22px}
+  .pd .bar{background:rgba(255,255,255,.2);border-radius:12px 12px 0 0;margin-top:8px}
+  .pd.p1 .bar{height:170px;background:#f59e0b}.pd.p2 .bar{height:120px;background:#94a3b8}.pd.p3 .bar{height:85px;background:#b45309}
+  .pd.p1{animation-delay:.6s}.pd.p2{animation-delay:.3s}
+  @media(max-width:760px){.boxes{grid-template-columns:repeat(3,1fr)}.lobby{grid-template-columns:1fr;justify-items:center;text-align:center}.qr{width:240px}}
+  /* Người chơi trên điện thoại */
+  .pl{max-width:480px;margin:0 auto;padding:16px 14px 30px}
+  .pcard{background:#fff;color:var(--tx);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+  .pcard h3{margin:0 0 6px;color:var(--c)}
+  .slots{display:grid;gap:8px}
+  .slot{display:flex;align-items:center;gap:10px;border:2px dashed #cbd5e1;border-radius:12px;padding:8px 10px;min-height:52px;font-size:16px;background:#f8fafc;color:var(--mu);width:100%;text-align:left}
+  .slot b{background:#f59e0b;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none;font-size:17px}
+  .slot.fill{border-style:solid;border-color:#99f6e4;color:var(--tx);font-weight:700;background:#fff}
+  .slot.sel{border-color:var(--c);border-style:solid;box-shadow:0 0 0 3px #99f6e4}
+  .slot.ok{border-color:var(--ok);background:#dcfce7}.slot.no{border-color:var(--no);background:#fee2e2}
+  .slot small{display:block;font-weight:600;color:var(--ok)}
+  .nchips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .nchip{border:2px solid var(--c);background:#fff;color:var(--c);border-radius:99px;padding:9px 14px;font-size:15px;font-weight:700}
+  .nchip.used{opacity:.3}
+  .pbig{font-size:46px;font-weight:900;color:var(--c);text-align:center;line-height:1.1}
+  .mmsg{text-align:center;font-weight:700;min-height:24px;margin:2px 0 8px;font-size:15px}
+  #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:10;max-width:90%;text-align:center}
+  #toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>👋 Làm quen thầy cô</h1>
+  <div class="sub" id="sub">Đang tải…</div>
+  <div class="bar"><i id="bar"></i></div>
+</header>
+
+<main>
+  <!-- THẺ LẬT -->
+  <section class="view on" id="v-hoc">
+    <div id="hocBox"></div>
+  </section>
+
+  <!-- ĐỐ VUI -->
+  <section class="view" id="v-do">
+    <div id="doBox"></div>
+  </section>
+
+  <!-- DANH BẠ -->
+  <section class="view" id="v-db">
+    <input type="search" id="q" placeholder="🔍 Tìm theo tên, môn dạy…">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- CÀI ĐẶT -->
+  <section class="view" id="v-cd">
+    <div class="panel">
+      <h3>📊 Tiến độ của tôi</h3>
+      <div class="stat" id="stat"></div>
+    </div>
+    <div class="panel">
+      <h3>🏫 Học nhận mặt phân hiệu</h3>
+      <select id="selPH"></select>
+    </div>
+    <div class="panel">
+      <h3>📷 Nhập ảnh thầy cô (dành cho người quản lý)</h3>
+      <div class="muted">Đặt tên tệp ảnh theo mẫu <b>Họ tên - Môn dạy.jpg</b>, ví dụ <i>Nguyễn Thị Hoa - Ngữ văn.jpg</i>. Có thể chọn cùng lúc nhiều ảnh.</div>
+      <label class="f">Các ảnh này thuộc phân hiệu</label>
+      <input type="text" id="impPH" list="dsPH" value="Hoành Sơn">
+      <datalist id="dsPH"><option value="Hoành Sơn"><option value="Giao Tiến"></datalist>
+      <label class="f">Chọn ảnh</label>
+      <input type="file" id="impFile" accept="image/*" multiple>
+      <div class="muted" id="impMsg" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnExport">⬇️ Xuất danhsach.js</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Ảnh nhập ở đây chỉ lưu trên máy này. Bấm <b>Xuất danhsach.js</b> rồi tải tệp đó lên cùng thư mục với trang web để mọi thầy cô đều thấy.</div>
+    </div>
+    <div class="panel">
+      <div class="row">
+        <button class="btn gray" id="btnReset">↺ Học lại từ đầu</button>
+        <button class="btn red" id="btnClear">🗑 Xoá ảnh đã nhập</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-v="v-hoc" class="on"><b>🃏</b>Thẻ học</button>
+  <button data-v="v-do"><b>🎯</b>Đố vui</button>
+  <button data-v="v-db"><b>👥</b>Danh bạ</button>
+  <button data-v="v-cd"><b>⚙️</b>Cài đặt</button>
+</nav>
+
+<div class="modal" id="modal"><div class="box" id="mBox"></div></div>
+<div id="toast"></div>
+<div id="live"></div>
+
+<script src="danhsach.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
+
+/* ---------- Ảnh đại diện thay thế (khi chưa có ảnh) ---------- */
+function avatar(name) {
+  const w = String(name).trim().split(/\s+/);
+  const ini = ((w.length > 1 ? w[w.length - 2][0] : '') + (w[w.length - 1] || '?')[0]).toUpperCase();
+  let h = 0; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><rect width="300" height="300" fill="hsl(${h},55%,55%)"/>` +
+    `<text x="150" y="190" font-family="Arial" font-size="120" font-weight="bold" fill="#fff" text-anchor="middle">${esc(ini)}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+const img = (p, cls = '') => `<img ${cls ? `class="${cls}"` : ''} src="${esc(p.anh || avatar(p.ten))}" data-name="${esc(p.ten)}" alt="">`;
+document.addEventListener('error', e => {
+  const t = e.target;
+  if (t.tagName === 'IMG' && t.dataset.name && !t.dataset.fb) { t.dataset.fb = 1; t.src = avatar(t.dataset.name); }
+}, true);
+
+/* ---------- Lưu ảnh nhập trên máy (IndexedDB) ---------- */
+const DB = {
+  open() { return new Promise((res, rej) => { const r = indexedDB.open('nhandien-thayco', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('nguoi', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async all() { const db = await this.open(); return new Promise((res, rej) => {
+    const q = db.transaction('nguoi').objectStore('nguoi').getAll(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async put(list) { const db = await this.open(); return new Promise((res, rej) => {
+    const tx = db.transaction('nguoi', 'readwrite'); const st = tx.objectStore('nguoi'); list.forEach(p => st.put(p));
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async clear() { const db = await this.open(); return new Promise((res, rej) => {
+    const tx = db.transaction('nguoi', 'readwrite'); tx.objectStore('nguoi').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+};
+
+/* ---------- Dữ liệu & tiến độ ---------- */
+let people = [];
+let settings = LS.get('nd_settings', { ph: 'Hoành Sơn' });
+let progress = LS.get('nd_progress', {});          // id -> {box:0..5, ok, sai}
+const BOX_MAX = 5, THUOC = 3;                       // hộp >= 3 coi là "đã nhớ"
+const WEIGHT = [10, 6, 3, 1.5, 0.7, 0.3];
+
+function norm(p) {
+  const ten = String(p.ten || '').trim(), ph = String(p.phanHieu || '').trim();
+  return { id: p.id || slug(ph + '-' + ten), ten, phanHieu: ph, mon: String(p.mon || '').trim(), ghiChu: String(p.ghiChu || '').trim(), anh: p.anh || '', local: !!p.local };
+}
+async function loadPeople() {
+  const map = new Map();
+  (window.DANH_SACH || []).map(norm).filter(p => p.ten).forEach(p => map.set(p.id, p));
+  try { (await DB.all()).map(norm).forEach(p => map.set(p.id, p)); } catch (e) { console.warn('IndexedDB', e); }
+  people = [...map.values()].sort((a, b) => a.ten.split(' ').pop().localeCompare(b.ten.split(' ').pop(), 'vi') || a.ten.localeCompare(b.ten, 'vi'));
+}
+const branches = () => [...new Set(people.map(p => p.phanHieu).filter(Boolean))];
+const pool = () => settings.ph === 'Tất cả' ? people : people.filter(p => p.phanHieu === settings.ph);
+const box = id => (progress[id] && progress[id].box) || 0;
+function mark(p, ok) {
+  const r = progress[p.id] || { box: 0, ok: 0, sai: 0 };
+  if (ok) { r.box = Math.min(BOX_MAX, r.box + 1); r.ok++; } else { r.box = 0; r.sai++; }
+  progress[p.id] = r; LS.set('nd_progress', progress); updateHeader();
+}
+let lastIds = [];
+function pickNext(list) {
+  if (!list.length) return null;
+  let cand = list.filter(p => !lastIds.includes(p.id));
+  if (!cand.length) cand = list;
+  const w = cand.map(p => WEIGHT[box(p.id)]);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  let pick = cand[cand.length - 1];
+  for (let i = 0; i < cand.length; i++) { r -= w[i]; if (r <= 0) { pick = cand[i]; break; } }
+  lastIds = [pick.id, ...lastIds].slice(0, Math.min(3, Math.max(0, list.length - 1)));
+  return pick;
+}
+function updateHeader() {
+  const L = pool(), n = L.filter(p => box(p.id) >= THUOC).length;
+  $('#sub').textContent = L.length ? `Phân hiệu ${settings.ph === 'Tất cả' ? 'tất cả' : settings.ph}: đã nhớ ${n}/${L.length} thầy cô` : 'Chưa có dữ liệu thầy cô';
+  $('#bar').style.width = L.length ? (n / L.length * 100) + '%' : '0';
+}
+
+/* ---------- Điều hướng ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.v));
+function show(v) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === v));
+  ({ 'v-hoc': renderHoc, 'v-do': renderDo, 'v-db': renderDB, 'v-cd': renderCD })[v]();
+  $('main').scrollTop = 0;
+}
+const emptyMsg = () => `<div class="empty">Chưa có thầy cô nào ở phân hiệu này.<br>Vào <b>⚙️ Cài đặt</b> để chọn phân hiệu khác hoặc nhập ảnh.</div>`;
+
+/* ---------- Thẻ học ---------- */
+let curHoc = null;
+function renderHoc(next) {
+  const L = pool();
+  if (!L.length) { $('#hocBox').innerHTML = emptyMsg(); return; }
+  if (next || !curHoc || !L.includes(curHoc)) curHoc = pickNext(L);
+  const p = curHoc;
+  $('#hocBox').innerHTML = `
+    <div class="flip" id="flip"><div class="in">
+      <div class="face">${img(p)}<div class="hint">Thầy/cô này là ai? Chạm để lật thẻ 👆</div></div>
+      <div class="face back">${img(p)}<div class="info"><div class="ten">${esc(p.ten)}</div>
+        <div>${p.mon ? `<span class="tag">📘 ${esc(p.mon)}</span>` : ''}<span class="tag">🏫 ${esc(p.phanHieu)}</span></div>
+        ${p.ghiChu ? `<div class="muted" style="margin-top:6px">${esc(p.ghiChu)}</div>` : ''}</div></div>
+    </div></div>
+    <div class="row" id="hocBtns" style="visibility:hidden">
+      <button class="btn gray" id="bNo">😕 Chưa nhớ</button>
+      <button class="btn" id="bOk">😊 Đã nhớ</button>
+    </div>`;
+  $('#flip').onclick = () => { $('#flip').classList.toggle('show'); $('#hocBtns').style.visibility = 'visible'; };
+  $('#bNo').onclick = () => { mark(p, false); renderHoc(true); };
+  $('#bOk').onclick = () => { mark(p, true); renderHoc(true); };
+}
+
+/* ---------- Đố vui: mini game 10 câu ---------- */
+const GAME_N = 10, GAME_T = 15;                     // số câu, số giây mỗi câu
+let game = null, sound = LS.get('nd_sound', true), actx = null;
+const bestKey = () => 'nd_best_' + slug(settings.ph);
+
+function beep(kind) {
+  if (!sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const seq = { ok: [[660, .08], [880, .08], [1320, .16]], no: [[320, .16], [200, .3]], tick: [[1100, .05]],
+      go: [[523, .1], [784, .22]], win: [[523, .13], [659, .13], [784, .13], [1047, .35]] }[kind];
+    let t = actx.currentTime;
+    seq.forEach(([f, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = kind === 'no' ? 'sawtooth' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d); t += d * .9;
+    });
+  } catch {}
+}
+function weightedPick(cand) {
+  const w = cand.map(p => WEIGHT[box(p.id)]);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < cand.length; i++) { r -= w[i]; if (r <= 0) return cand[i]; }
+  return cand[cand.length - 1];
+}
+function buildGame() {
+  const L = pool(), used = new Set(), qs = [];
+  const types = shuffle([...Array(GAME_N)].map((_, k) => k % 2 ? 'ten' : 'anh'));   // nửa nhìn ảnh, nửa tìm ảnh
+  for (let k = 0; k < GAME_N; k++) {
+    let cand = L.filter(p => !used.has(p.id)); if (!cand.length) { used.clear(); cand = L; }
+    const p = weightedPick(cand); used.add(p.id);
+    qs.push({ p, type: types[k], opts: shuffle([p, ...shuffle(L.filter(x => x.id !== p.id)).slice(0, 3)]) });
+  }
+  return { qs, i: 0, score: 0, streak: 0, best: 0, correct: 0, res: [], phase: 'start', tLeft: GAME_T, answered: false };
+}
+function renderDo() {
+  const L = pool();
+  if (L.length < 4) { $('#doBox').innerHTML = L.length ? '<div class="empty">Cần ít nhất 4 thầy cô để chơi.</div>' : emptyMsg(); return; }
+  if (match) { if (match.done) drawMatchEnd(false); else drawMatch(); return; }
+  if (!game) drawHub();
+  else if (game.phase === 'start') drawStart();
+  else if (game.phase === 'play') drawQ();
+  else if (game.phase === 'end') drawEnd(false);
+}
+function drawHub() {
+  game = null; match = null;
+  const bq = LS.get(bestKey(), 0), bm = LS.get(matchKey(), null);
+  $('#doBox').innerHTML = `<div class="gstart"><div class="gicon">🎮</div><h2>Chọn trò chơi</h2>
+    <div class="muted">Thầy cô phân hiệu <b>${esc(settings.ph)}</b></div></div>
+    <div class="hub">
+      <button class="gcard" id="hQuiz"><span class="ic">🎯</span><span><h3>Thử thách nhận mặt</h3>
+        <p>10 câu hỏi, 15 giây mỗi câu. Trả lời nhanh để ăn điểm, đúng liên tiếp để nhân combo.</p>
+        ${bq ? `<span class="rc">🏆 Kỷ lục: ${bq} điểm</span>` : ''}</span><span class="go">▶</span></button>
+      <button class="gcard" id="hMatch"><span class="ic">🃏</span><span><h3>Ghép thẻ</h3>
+        <p>20 lá bài úp: 10 lá ảnh, 10 lá tên. Mỗi lượt lật 2 lá, ghép đúng ảnh với tên để loại khỏi bàn.</p>
+        ${bm ? `<span class="rc">🏆 Kỷ lục: ${bm.moves} lượt · ${fmtTime(bm.sec)}</span>` : ''}</span><span class="go">▶</span></button>
+      <button class="gcard" id="hLive"><span class="ic">📺</span><span><h3>Thi đấu nhiều máy (5 ô)</h3>
+        <p>Màn hình chính chiếu 5 ảnh. Mọi người quét mã QR bằng điện thoại, chọn tên cho từng ô. Kết quả và bảng xếp hạng hiện trên màn hình chính.</p></span><span class="go">▶</span></button>
+    </div>
+    <div style="text-align:center"><button class="sound" id="gSnd">${sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}</button></div>`;
+  $('#hQuiz').onclick = drawStart;
+  $('#hMatch').onclick = startMatch;
+  $('#hLive').onclick = openHost;
+  $('#gSnd').onclick = () => { sound = !sound; LS.set('nd_sound', sound); drawHub(); };
+}
+function drawStart() {
+  game = null;
+  const best = LS.get(bestKey(), 0);
+  $('#doBox').innerHTML = `<button class="mini" id="gBack">‹ Chọn trò khác</button><div class="gstart">
+    <div class="gicon">🎯</div><h2>Thử thách nhận mặt</h2>
+    <div class="muted">Thầy cô phân hiệu <b>${esc(settings.ph)}</b></div>
+    <div class="rules"><div><b>10</b>câu hỏi</div><div><b>15s</b>mỗi câu</div><div><b>🔥x2</b>combo</div></div>
+    <div class="muted">Trả lời càng nhanh càng nhiều điểm.<br>Đúng 3 câu liên tiếp được <b>x1,5</b>, 5 câu liên tiếp được <b>x2</b>!</div>
+    ${best ? `<div class="best">🏆 Kỷ lục của bạn: <b>${best}</b> điểm</div>` : ''}
+    <button class="btn big" id="gGo">▶ BẮT ĐẦU</button>
+    <button class="sound" id="gSnd">${sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}</button></div>`;
+  $('#gGo').onclick = startGame;
+  $('#gBack').onclick = drawHub;
+  $('#gSnd').onclick = () => { sound = !sound; LS.set('nd_sound', sound); drawStart(); };
+}
+function startGame() {
+  const g = game = buildGame(); g.phase = 'count';
+  let n = 3;
+  const draw = () => { $('#doBox').innerHTML = `<div class="count">${n || 'GO!'}</div>`; beep(n ? 'tick' : 'go'); };
+  draw();
+  const iv = setInterval(() => {
+    if (game !== g) return clearInterval(iv);
+    n--;
+    if (n < 0) { clearInterval(iv); g.phase = 'play'; startQ(); } else draw();
+  }, 750);
+}
+function startQ() {
+  const g = game; g.tLeft = GAME_T; g.answered = false; g.chosen = null; drawQ();
+  clearInterval(g.iv);
+  g.iv = setInterval(() => {
+    if (game !== g || g.answered || g.phase !== 'play') return clearInterval(g.iv);
+    if (document.hidden || !$('#v-do').classList.contains('on')) return;     // tạm dừng khi rời màn hình
+    const before = Math.ceil(g.tLeft);
+    g.tLeft = Math.max(0, Math.round((g.tLeft - 0.1) * 10) / 10);
+    updTimer();
+    if (g.tLeft <= 5 && g.tLeft > 0 && Math.ceil(g.tLeft) < before) beep('tick');
+    if (g.tLeft <= 0) answer(-1);
+  }, 100);
+}
+function updTimer() {
+  const b = $('#tBar'); if (!b || !game) return;
+  b.style.width = (game.tLeft / GAME_T * 100) + '%';
+  b.classList.toggle('warn', game.tLeft <= 5);
+}
+function drawQ() {
+  const g = game, q = g.qs[g.i];
+  const dots = g.qs.map((_, k) => `<i class="${k < g.res.length ? (g.res[k].ok ? 'ok' : 'no') : k === g.i ? 'cur' : ''}"></i>`).join('');
+  const head = q.type === 'anh'
+    ? `<div class="qlabel" id="fb">📷 Đây là thầy/cô nào?</div>${img(q.p, 'qimg')}`
+    : `<div class="qlabel" id="fb">🔍 Tìm ảnh của</div><div class="qname">${esc(q.p.ten)}</div>`;
+  const os = q.opts.map((o, i) => q.type === 'anh'
+    ? `<button class="opt" data-i="${i}">${esc(o.ten)}</button>`
+    : `<button class="opt pic" data-i="${i}">${img(o)}</button>`).join('');
+  $('#doBox').innerHTML = `
+    <div class="ghead"><span>Câu <b>${g.i + 1}</b>/${GAME_N}</span><span class="gscore" id="gScore">${g.score}</span><span class="combo" id="gCombo">${g.streak >= 2 ? '🔥x' + g.streak : ''}</span></div>
+    <div class="dots" id="gDots">${dots}</div>
+    <div class="timer"><i id="tBar"></i></div>
+    <div class="qwrap" id="qwrap">${head}<div class="opts ${q.type === 'ten' ? 'pics' : ''}">${os}</div></div>`;
+  document.querySelectorAll('#qwrap .opt').forEach(b => b.onclick = () => answer(+b.dataset.i));
+  updTimer();
+  if (g.answered) paintAnswer(0, true);
+}
+function answer(i) {
+  const g = game; if (!g || g.phase !== 'play' || g.answered) return;
+  g.answered = true; clearInterval(g.iv); g.chosen = i;
+  const q = g.qs[g.i], ok = i >= 0 && q.opts[i].id === q.p.id;
+  let pts = 0, mul = 1;
+  if (ok) {
+    g.streak++; g.best = Math.max(g.best, g.streak); g.correct++;
+    mul = g.streak >= 5 ? 2 : g.streak >= 3 ? 1.5 : 1;
+    pts = Math.round((100 + Math.ceil(g.tLeft) * 10) * mul);
+    g.score += pts; beep('ok');
+  } else {
+    g.streak = 0; beep('no');
+    if (navigator.vibrate) try { navigator.vibrate(200); } catch {}
+  }
+  g.res.push({ p: q.p, ok, pts, timeout: i < 0 });
+  mark(q.p, ok);
+  paintAnswer(pts, false, mul);
+  setTimeout(() => {
+    if (game !== g) return;
+    g.i++;
+    if (g.i >= GAME_N) endGame(); else startQ();
+  }, ok ? 1400 : 2400);
+}
+function paintAnswer(pts, redraw, mul = 1) {
+  const g = game, q = g.qs[g.i], r = g.res[g.i], ok = r && r.ok;
+  document.querySelectorAll('#qwrap .opt').forEach((b, k) => {
+    b.disabled = true;
+    if (q.opts[k].id === q.p.id) b.classList.add('ok'); else if (k === g.chosen) b.classList.add('no');
+  });
+  const dot = document.querySelectorAll('#gDots i')[g.i]; if (dot) dot.className = ok ? 'ok' : 'no';
+  const praise = ['Chính xác!', 'Tuyệt vời!', 'Xuất sắc!', 'Quá đỉnh!', 'Giỏi quá!'];
+  $('#fb').innerHTML = ok ? `<span style="color:var(--ok)">🎉 ${praise[Math.random() * praise.length | 0]}</span>`
+    : `<span style="color:var(--no)">${r && r.timeout ? '⏰ Hết giờ!' : '❌ Chưa đúng!'} Đây là <b>${esc(q.p.ten)}</b></span>`;
+  if (redraw) return;
+  const sc = $('#gScore'); sc.textContent = g.score; sc.classList.remove('pop'); void sc.offsetWidth; if (ok) sc.classList.add('pop');
+  $('#gCombo').textContent = g.streak >= 2 ? '🔥x' + g.streak : '';
+  if (ok) {
+    const f = document.createElement('div'); f.className = 'float';
+    f.innerHTML = `+${pts}${mul > 1 ? `<small>🔥 COMBO x${mul.toString().replace('.', ',')}</small>` : ''}`;
+    document.body.appendChild(f); setTimeout(() => f.remove(), 1200);
+  } else {
+    $('#qwrap').classList.add('shake');
+  }
+}
+function endGame() {
+  const g = game, old = LS.get(bestKey(), 0);
+  g.phase = 'end'; g.old = old; g.rec = g.score > old;
+  if (g.rec) LS.set(bestKey(), g.score);
+  beep('win'); drawEnd(true);
+}
+function drawEnd(anim) {
+  const g = game, c = g.correct, stars = c >= 9 ? 3 : c >= 6 ? 2 : c >= 3 ? 1 : 0;
+  const rank = c === GAME_N ? '🏆 Bậc thầy nhận mặt!' : c >= 8 ? '🌟 Xuất sắc!' : c >= 6 ? '👍 Khá lắm!' : c >= 3 ? '💪 Cố lên nhé!' : '📚 Cần học thêm';
+  const seen = new Set(), wrong = g.res.filter(r => !r.ok && !seen.has(r.p.id) && seen.add(r.p.id));
+  $('#doBox').innerHTML = `<div class="gend">
+    <div class="stars">${[1, 2, 3].map(k => `<span class="${k <= stars ? 'on' : ''}" style="animation-delay:${k * .25}s">★</span>`).join('')}</div>
+    <h2>${rank}</h2>
+    <div class="big-score" id="endScore">${anim ? 0 : g.score}</div><div class="muted">điểm</div>
+    ${g.rec ? '<div class="rec">🎉 KỶ LỤC MỚI!</div>' : `<div class="muted" style="margin-top:6px">🏆 Kỷ lục: ${g.old} điểm</div>`}
+    <div class="stat" style="margin:16px 0"><div><b>${c}/${GAME_N}</b><span>Câu đúng</span></div><div><b>🔥${g.best}</b><span>Chuỗi dài nhất</span></div><div><b>${Math.round(c / GAME_N * 100)}%</b><span>Chính xác</span></div></div>
+    ${wrong.length ? `<div class="panel" style="text-align:left"><h3>📝 Cần nhớ thêm (${wrong.length})</h3><div class="wlist">${wrong.map(r => `<div>${img(r.p)}<span>${esc(r.p.ten)}</span></div>`).join('')}</div></div>` : ''}
+    <div class="row"><button class="btn gray" id="gHome">🏠 Về đầu</button><button class="btn" id="gAgain">🔄 Chơi lại</button></div></div>`;
+  $('#gHome').onclick = drawHub;
+  $('#gAgain').onclick = startGame;
+  if (anim) {
+    const el = $('#endScore'), t0 = performance.now(), dur = 1200;
+    const step = t => { const k = Math.min(1, (t - t0) / dur); el.textContent = Math.round(g.score * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+    setTimeout(() => { el.textContent = g.score; }, dur + 150);
+    if (stars >= 2 || g.rec) confetti();
+  }
+}
+function confetti() {
+  const cv = document.createElement('canvas'); cv.id = 'confetti'; document.body.appendChild(cv);
+  const W = cv.width = innerWidth, H = cv.height = innerHeight, ctx = cv.getContext('2d');
+  const cols = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#a855f7', '#ec4899'];
+  const ps = [...Array(140)].map(() => ({ x: W / 2 + (Math.random() - .5) * 80, y: H * .35, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4,
+    s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[Math.random() * cols.length | 0] }));
+  const t0 = performance.now();
+  const step = t => {
+    ctx.clearRect(0, 0, W, H);
+    ps.forEach(p => { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); });
+    if (t - t0 < 3000) requestAnimationFrame(step); else cv.remove();
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- Trò Ghép thẻ: 10 ảnh + 10 tên ---------- */
+const MATCH_PAIRS = 10;
+let match = null, matchIv = null;
+const matchKey = () => 'nd_match_' + slug(settings.ph);
+const fmtTime = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+function startMatch() {
+  const L = pool(), used = new Set(), sel = [];
+  while (sel.length < Math.min(MATCH_PAIRS, L.length)) {
+    const p = weightedPick(L.filter(x => !used.has(x.id))); used.add(p.id); sel.push(p);
+  }
+  const cards = shuffle(sel.flatMap(p => [{ p, type: 'anh' }, { p, type: 'ten' }])).map((c, i) => ({ ...c, i, st: 'down' }));
+  game = null;
+  match = { cards, open: [], moves: 0, found: 0, n: sel.length, t0: Date.now(), sec: 0, lock: false, done: false };
+  const m = match;
+  clearInterval(matchIv);
+  matchIv = setInterval(() => {
+    if (match !== m || m.done) return clearInterval(matchIv);
+    if (document.hidden || !$('#v-do').classList.contains('on')) { m.t0 += 1000; return; }   // tạm dừng giờ
+    m.sec = Math.floor((Date.now() - m.t0) / 1000);
+    const el = $('#mTime'); if (el) el.textContent = fmtTime(m.sec);
+  }, 1000);
+  beep('go');
+  drawMatch();
+}
+function drawMatch() {
+  const m = match;
+  $('#doBox').innerHTML = `
+    <div class="ghead"><button class="mini" id="mBack">‹ Thoát</button><span>⏱ <b id="mTime">${fmtTime(m.sec)}</b></span>
+      <span>👆 <b id="mMoves">${m.moves}</b> lượt</span><span>✅ <b id="mFound">${m.found}</b>/${m.n}</span></div>
+    <div class="mmsg" id="mMsg">Lật 2 lá: tìm ảnh và tên của cùng một người</div>
+    <div class="mgrid">${m.cards.map(c => `<div class="mc ${c.st}" data-i="${c.i}"><div class="in"><div class="mback">?</div>
+      <div class="mfront ${c.type}">${c.type === 'anh' ? img(c.p) : `<span>${esc(c.p.ten)}</span>`}</div></div></div>`).join('')}</div>`;
+  document.querySelectorAll('.mc').forEach(el => el.onclick = () => flipCard(+el.dataset.i));
+  $('#mBack').onclick = () => { if (m.found === 0 || confirm('Thoát ván đang chơi?')) drawHub(); };
+}
+function setCard(c) { const el = document.querySelector(`.mc[data-i="${c.i}"]`); if (el) el.className = 'mc ' + c.st; }
+function mMsg(html) { const el = $('#mMsg'); if (el) el.innerHTML = html; }
+function flipCard(i) {
+  const m = match; if (!m || m.lock || m.done) return;
+  const c = m.cards[i]; if (c.st !== 'down') return;
+  c.st = 'up'; setCard(c); m.open.push(c); beep('tick');
+  if (m.open.length < 2) return;
+  m.moves++; $('#mMoves').textContent = m.moves; m.lock = true;
+  const [a, b] = m.open;
+  if (a.p.id === b.p.id) {                         // cùng một người: 1 ảnh + 1 tên
+    setTimeout(() => {
+      if (match !== m) return;
+      a.st = b.st = 'match'; setCard(a); setCard(b); beep('ok');
+      m.found++; $('#mFound').textContent = m.found;
+      mMsg(`<span style="color:var(--ok)">✅ Đúng rồi! Đây là <b>${esc(a.p.ten)}</b></span>`);
+      setTimeout(() => {
+        if (match !== m) return;
+        a.st = b.st = 'gone'; setCard(a); setCard(b); m.open = []; m.lock = false;
+        if (m.found === m.n) setTimeout(endMatch, 500);
+      }, 900);
+    }, 400);
+  } else {
+    setTimeout(() => {
+      if (match !== m) return;
+      a.st = b.st = 'bad'; setCard(a); setCard(b); beep('no');
+      mMsg(`<span style="color:var(--no)">❌ Chưa khớp, nhớ vị trí và thử lại nhé!</span>`);
+    }, 450);
+    setTimeout(() => {
+      if (match !== m) return;
+      a.st = b.st = 'down'; setCard(a); setCard(b); m.open = []; m.lock = false;
+    }, 1400);
+  }
+}
+function endMatch() {
+  const m = match; m.done = true; clearInterval(matchIv);
+  m.sec = Math.floor((Date.now() - m.t0) / 1000);
+  const old = LS.get(matchKey(), null);
+  m.old = old;
+  m.rec = !old || m.moves < old.moves || (m.moves === old.moves && m.sec < old.sec);
+  if (m.rec) LS.set(matchKey(), { moves: m.moves, sec: m.sec });
+  m.people = [...new Map(m.cards.map(c => [c.p.id, c.p])).values()];
+  beep('win'); drawMatchEnd(true);
+}
+function drawMatchEnd(anim) {
+  const m = match, stars = m.moves <= m.n + 4 ? 3 : m.moves <= m.n * 2 ? 2 : 1;
+  const rank = stars === 3 ? '🏆 Trí nhớ siêu đỉnh!' : stars === 2 ? '🌟 Giỏi lắm!' : '👍 Hoàn thành!';
+  $('#doBox').innerHTML = `<div class="gend">
+    <div class="stars">${[1, 2, 3].map(k => `<span class="${k <= stars ? 'on' : ''}" style="animation-delay:${k * .25}s">★</span>`).join('')}</div>
+    <h2>${rank}</h2>
+    <div class="muted">Bạn đã ghép đủ ${m.n} cặp thầy cô</div>
+    ${m.rec ? '<div class="rec">🎉 KỶ LỤC MỚI!</div>' : `<div class="muted" style="margin-top:6px">🏆 Kỷ lục: ${m.old.moves} lượt · ${fmtTime(m.old.sec)}</div>`}
+    <div class="stat" style="margin:16px 0"><div><b>${m.moves}</b><span>Lượt lật</span></div><div><b>${fmtTime(m.sec)}</b><span>Thời gian</span></div><div><b>${Math.round(m.n / m.moves * 100)}%</b><span>Chính xác</span></div></div>
+    <div class="panel" style="text-align:left"><h3>👥 Các thầy cô vừa gặp</h3><div class="wlist">${m.people.map(p => `<div>${img(p)}<span>${esc(p.ten)}</span></div>`).join('')}</div></div>
+    <div class="row"><button class="btn gray" id="mHome">🏠 Về đầu</button><button class="btn" id="mAgain">🔄 Chơi lại</button></div></div>`;
+  $('#mHome').onclick = drawHub;
+  $('#mAgain').onclick = startMatch;
+  if (anim && (stars >= 2 || m.rec)) confetti();
+}
+
+/* ---------- Thi đấu nhiều máy: 5 ô ----------
+   Màn hình chính (host) và điện thoại (người chơi) nói chuyện qua máy chủ MQTT công cộng.
+   Chỉ gửi tên người chơi, tên thầy cô và đáp án; ảnh không gửi đi. */
+const LIVE_N = 5, LIVE_T = 60, TOPIC = 'lamquen-thayco/v1/';
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+const LIB_MQTT = ['https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5/dist/mqtt.min.js'];
+const LIB_QR = ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', 'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js'];
+let live = null;
+
+function loadScript(srcs) {
+  return new Promise((res, rej) => {
+    let i = 0;
+    const next = () => {
+      if (i >= srcs.length) return rej(new Error('Không tải được thư viện (kiểm tra mạng Internet)'));
+      const s = document.createElement('script'); s.src = srcs[i++];
+      s.onload = res; s.onerror = () => { s.remove(); next(); };
+      document.head.appendChild(s);
+    };
+    next();
+  });
+}
+async function mqConnect(bi, sub, onMsg) {
+  if (!window.mqtt) await loadScript(LIB_MQTT);
+  return new Promise((res, rej) => {
+    const c = mqtt.connect(BROKERS[bi], { connectTimeout: 7000, reconnectPeriod: 2000, clean: true, clientId: 'lq' + Math.random().toString(36).slice(2, 10) });
+    let ok = false;
+    const to = setTimeout(() => { if (!ok) { c.end(true); rej(new Error('timeout')); } }, 8000);
+    c.on('connect', () => {
+      c.subscribe(sub, { qos: 1 });
+      if (!ok) { ok = true; clearTimeout(to); res(c); } else if (c.onRe) c.onRe();
+    });
+    c.on('message', (t, b) => { try { onMsg(JSON.parse(new TextDecoder().decode(b))); } catch {} });
+    c.on('error', () => {});
+  });
+}
+const rid = n => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < n; i++) s += A[Math.random() * A.length | 0]; return s; };
+
+/* ===== Màn hình chính ===== */
+async function openHost() {
+  if (pool().length < LIVE_N) { toast('Cần ít nhất 5 thầy cô để chơi'); return; }
+  const me = live = { role: 'host', code: rid(5), players: {}, round: null, r: 0, used: new Set(), ph: 'lobby' };
+  document.body.classList.add('live');
+  $('#live').innerHTML = '<div class="lv"><div class="lvsub" style="margin-top:30vh">⏳ Đang kết nối máy chủ…</div></div>';
+  let c = null;
+  for (let i = 0; i < BROKERS.length && !c; i++) {
+    try { c = await mqConnect(i, TOPIC + me.code + '/up', onHostMsg); me.bi = i; } catch {}
+    if (live !== me) { if (c) c.end(true); return; }
+  }
+  if (!c) {
+    $('#live').innerHTML = `<div class="lv"><div class="lvsub" style="margin-top:25vh">❌ Không kết nối được máy chủ.<br><small>Kiểm tra mạng Internet rồi thử lại.</small></div>
+      <div style="text-align:center"><button class="lvbtn gray" id="hClose">✕ Đóng</button></div></div>`;
+    $('#hClose').onclick = closeLive; return;
+  }
+  me.c = c; c.onRe = () => pubState(true);
+  me.link = (window.DIA_CHI_WEB || location.href.split(/[?#]/)[0]) + '?phong=' + me.code + '&b=' + me.bi;
+  try { if (!window.qrcode) await loadScript(LIB_QR); } catch {}
+  if (live !== me) return;
+  pubState(true); drawHost();
+}
+function closeLive() {
+  if (live && live.role === 'host' && live.c) {
+    if (Object.keys(live.players).length && !confirm('Đóng phòng thi đấu?')) return;
+    live.ph = 'closed'; pubState(true);
+    const c = live.c; setTimeout(() => c.end(), 500);
+  }
+  if (live) { clearInterval(live.ti); clearInterval(live.pi); }
+  live = null;
+  document.body.classList.remove('live');
+  $('#live').innerHTML = '';
+  if ($('#v-do').classList.contains('on')) drawHub();
+}
+function rankList() {
+  const arr = Object.entries(live.players).map(([id, p]) => ({ id, ...p })).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'vi'));
+  let rk = 0, prev = null;
+  arr.forEach((p, i) => { if (p.total !== prev) { rk = i + 1; prev = p.total; } p.rank = rk; });
+  return arr;
+}
+function pubState(now) {
+  if (!live || live.role !== 'host') return;
+  clearTimeout(live.pt);
+  const me = live;
+  const send = () => {
+    if (!me.c) return;
+    const R = me.round, pl = {};
+    rankList().forEach(p => {
+      pl[p.id] = [p.name, p.total, p.rank, p.last ? p.last.c : null, p.last ? p.last.pts : null,
+        me.ph === 'reveal' && R && R.subs[p.id] ? R.subs[p.id].pick : null];
+    });
+    const st = { v: 1, ph: me.ph, r: me.r, n: Object.keys(me.players).length, pl, got: R && me.ph === 'play' ? Object.keys(R.subs) : [] };
+    if (R && (me.ph === 'play' || me.ph === 'reveal')) st.names = R.names;
+    if (R && me.ph === 'reveal') st.ans = R.people.map(p => p.ten);
+    me.c.publish(TOPIC + me.code + '/down', JSON.stringify(st), { qos: 1, retain: true });
+  };
+  if (now) send(); else me.pt = setTimeout(send, 250);
+}
+function onHostMsg(m) {
+  const me = live; if (!me || me.role !== 'host' || !m || typeof m.id !== 'string') return;
+  if (m.t === 'join') {
+    const name = String(m.name || '').trim().slice(0, 30) || 'Người chơi';
+    if (!me.players[m.id]) { me.players[m.id] = { name, total: 0, last: null }; beep('tick'); }
+    else me.players[m.id].name = name;
+    pubState(); hostRefresh();
+  } else if (m.t === 'ans') {
+    const R = me.round;
+    if (me.ph !== 'play' || !R || m.r !== me.r || !me.players[m.id]) return;
+    if (R.subs[m.id]) { pubState(); return; }                       // đã nhận rồi: chỉ báo lại
+    if (!Array.isArray(m.pick) || m.pick.length !== LIVE_N || !m.pick.every(n => R.names.includes(n))) return;
+    R.subs[m.id] = { pick: m.pick.slice(), t: Date.now() };
+    pubState(); hostRefresh();
+    if (Object.keys(R.subs).length >= Object.keys(me.players).length) {
+      const r = me.r; setTimeout(() => { if (live === me && me.ph === 'play' && me.r === r) reveal(); }, 1200);
+    }
+  }
+}
+function newRound() {
+  const me = live, L = pool();
+  let cand = L.filter(p => !me.used.has(p.id));
+  if (cand.length < LIVE_N) { me.used.clear(); cand = L; }
+  const people = [], names = new Set();
+  for (const p of shuffle([...cand])) {
+    if (people.length >= LIVE_N) break;
+    if (names.has(p.ten)) continue;
+    people.push(p); names.add(p.ten); me.used.add(p.id);
+  }
+  me.r++;
+  me.round = { people, names: shuffle(people.map(p => p.ten)), subs: {} };
+  Object.values(me.players).forEach(p => p.last = null);
+  clearInterval(me.ti); me.left = LIVE_T;
+  me.ph = 'play'; pubState(true); drawHost(); beep('go');
+  const r = me.r;
+  me.ti = setInterval(() => {
+    if (live !== me || me.ph !== 'play' || me.r !== r) return clearInterval(me.ti);
+    me.left--;
+    const b = $('#hBar'); if (b) b.style.width = (me.left / LIVE_T * 100) + '%';
+    const l = $('#hLeft'); if (l) l.textContent = me.left;
+    if (me.left <= 5 && me.left > 0) beep('tick');
+    if (me.left <= 0) reveal();
+  }, 1000);
+}
+function reveal() {
+  const me = live; if (!me || me.ph !== 'play') return;
+  clearInterval(me.ti);
+  const R = me.round, ans = R.people.map(p => p.ten);
+  R.slotOk = Array(LIVE_N).fill(0);
+  let order = 0;
+  Object.entries(R.subs).sort((a, b) => a[1].t - b[1].t).forEach(([id, s]) => {
+    const pl = me.players[id]; if (!pl) return;
+    let c = 0; s.pick.forEach((n, k) => { if (n === ans[k]) { c++; R.slotOk[k]++; } });
+    let pts = c * 100;
+    if (c === LIVE_N) { pts += [50, 30, 20][order] || 0; order++; }     // thưởng 3 người đúng hết nhanh nhất
+    pl.total += pts; pl.last = { c, pts };
+  });
+  me.ph = 'reveal'; pubState(true); drawHost(); beep('win');
+}
+function hostRefresh() {
+  const me = live; if (!me || me.role !== 'host') return;
+  const n = Object.keys(me.players).length;
+  const e = $('#hCount'); if (e) e.textContent = '👥 ' + n;
+  const hp = $('#hPlayers');
+  if (hp) hp.innerHTML = Object.values(me.players).map(p => `<span class="chip">${esc(p.name)}</span>`).join('') || '<span style="opacity:.7">Chưa có ai vào phòng…</span>';
+  const st = $('#hStart'); if (st) st.disabled = !n;
+  if (me.ph === 'play') {
+    const subs = me.round.subs;
+    const g = $('#hGot'); if (g) g.textContent = Object.keys(subs).length + '/' + n;
+    const hs = $('#hSubs');
+    if (hs) hs.innerHTML = Object.entries(me.players).map(([id, p]) => `<span class="chip ${subs[id] ? 'ok' : ''}">${subs[id] ? '✅ ' : ''}${esc(p.name)}</span>`).join('');
+  }
+}
+function qrHtml(cls) {
+  if (!window.qrcode) return `<div class="qr ${cls}" style="color:#333;font-size:13px">Không tạo được mã QR — dùng đường link</div>`;
+  const q = qrcode(0, 'M'); q.addData(live.link); q.make();
+  return `<div class="qr ${cls}">${q.createSvgTag(6, 2)}</div>`;
+}
+function drawHost() {
+  const me = live, R = me.round, n = Object.keys(me.players).length;
+  const top = `<div class="lvtop"><h2>📺 Thi đấu nhận mặt — 5 ô</h2><span>Mã phòng</span><span class="code">${me.code}</span>
+    <span id="hCount" style="font-size:20px">👥 ${n}</span><button class="lvbtn gray" id="hClose">✕ Đóng</button></div>`;
+  let body = '';
+  if (me.ph === 'lobby') {
+    const local = location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname);
+    body = `<div class="lobby">${qrHtml('')}<div>
+      <div class="big">📱 Quét mã QR để tham gia!</div>
+      <div class="link">${esc(me.link)}</div>
+      ${local && !window.DIA_CHI_WEB ? '<div class="warn">⚠️ Phần mềm đang chạy trên máy tính này nên điện thoại chưa mở được đường link. Cần đưa phần mềm lên mạng (GitHub Pages) để điện thoại tham gia.</div>' : ''}
+      <div class="chips" id="hPlayers"></div>
+      <div style="margin-top:20px"><button class="lvbtn" id="hStart">▶ Bắt đầu vòng 1</button></div>
+      <div style="opacity:.8;margin-top:10px;font-size:15px">Mỗi vòng có ${LIVE_N} ảnh, ${LIVE_T} giây. Mỗi ô đúng được 100 điểm; 3 người đúng cả 5 ô nhanh nhất được thưởng thêm 50/30/20 điểm.</div>
+    </div></div>`;
+  } else if (me.ph === 'play' || me.ph === 'reveal') {
+    const rv = me.ph === 'reveal', ns = Object.keys(R.subs).length;
+    body = `<div class="lvsub">${rv ? `🔓 Đáp án vòng ${me.r}` : `Vòng ${me.r}: nhìn ảnh, chọn tên đúng cho từng ô trên điện thoại!`}</div>
+      ${rv ? '' : `<div class="lvtimer"><i id="hBar"></i></div>`}
+      <div class="boxes">${R.people.map((p, k) => `<div class="bx" style="animation-delay:${rv ? 0 : k * .12}s"><span class="no">${k + 1}</span>${img(p)}
+        <div class="nm ${rv ? '' : 'hid'}">${rv ? esc(p.ten) + `<span class="pct">✅ ${R.slotOk[k]}/${ns} người đúng</span>` : '?'}</div></div>`).join('')}</div>`;
+    if (!rv) {
+      body += `<div class="lvrow"><span>⏱ <b id="hLeft">${me.left}</b>s</span><span>📨 Đã nộp: <b id="hGot"></b></span>
+        <div class="chips" id="hSubs"></div><button class="lvbtn" id="hReveal">🔓 Công bố đáp án</button>
+        <span class="late">Vào muộn?<br>Quét mã này ➜${qrHtml('mini')}</span></div>`;
+    } else {
+      const arr = rankList().slice(0, 10);
+      body += `<div class="board">${arr.map(p => `<div class="r"><span class="rk">${['🥇', '🥈', '🥉'][p.rank - 1] || p.rank}</span><span class="pn">${esc(p.name)}</span>
+        <span class="pp">${p.last ? `${p.last.c}/${LIVE_N} · +${p.last.pts}` : 'chưa nộp'}</span><span class="pt">${p.total}</span></div>`).join('') || '<div class="r">Chưa có người chơi</div>'}</div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button class="lvbtn" id="hNext">▶ Vòng ${me.r + 1}</button><button class="lvbtn gray" id="hEnd">🏁 Kết thúc & trao giải</button></div>`;
+    }
+  } else if (me.ph === 'end') {
+    const a = rankList();
+    body = `<div class="lvsub" style="font-size:30px">🏆 Kết quả chung cuộc</div>
+      <div class="podium">${[1, 0, 2].map(i => a[i] ? `<div class="pd p${i + 1}"><div class="pm">${['🥇', '🥈', '🥉'][i]}</div><div class="pn">${esc(a[i].name)}</div><div class="pt">${a[i].total}</div><div class="bar"></div></div>` : '').join('')}</div>
+      ${a.length > 3 ? `<div class="board">${a.slice(3, 15).map(p => `<div class="r"><span class="rk">${p.rank}</span><span class="pn">${esc(p.name)}</span><span class="pt">${p.total}</span></div>`).join('')}</div>` : ''}
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:16px"><button class="lvbtn" id="hAgain">🔄 Chơi ván mới</button></div>`;
+  }
+  $('#live').innerHTML = `<div class="lv">${top}${body}</div>`;
+  $('#hClose').onclick = closeLive;
+  const on = (id, f) => { const el = $(id); if (el) el.onclick = f; };
+  on('#hStart', newRound); on('#hNext', newRound); on('#hReveal', reveal);
+  on('#hEnd', () => { me.ph = 'end'; pubState(true); drawHost(); beep('win'); confetti(); });
+  on('#hAgain', () => { Object.values(me.players).forEach(p => { p.total = 0; p.last = null; }); me.r = 0; me.round = null; me.used.clear(); me.ph = 'lobby'; pubState(true); drawHost(); });
+  hostRefresh();
+}
+
+/* ===== Người chơi trên điện thoại ===== */
+async function openPlayer(code, bi) {
+  document.body.classList.add('live', 'player');
+  const me = live = { role: 'pl', code, bi: BROKERS[bi] ? bi : 0, id: LS.get('nd_pid_' + code, '') || rid(10), name: LS.get('nd_pname', ''),
+    st: null, picks: {}, sent: {}, sel: 0, joinAt: 0 };
+  LS.set('nd_pid_' + code, me.id);
+  plShow('<div class="pcard" style="text-align:center">⏳ Đang kết nối vào phòng <b>' + esc(code) + '</b>…</div>');
+  try { me.c = await mqConnect(me.bi, TOPIC + code + '/down', onPlMsg); }
+  catch { plShow('<div class="pcard" style="text-align:center">❌ Không kết nối được. Kiểm tra mạng Internet rồi tải lại trang.</div>'); return; }
+  me.pi = setInterval(() => {                                   // gửi lại nếu màn hình chính chưa nhận
+    const st = me.st; if (!st || !me.name || st.ph === 'closed') return;
+    if (!st.pl[me.id]) plSendJoin();
+    else if (st.ph === 'play' && me.sent[st.r] && !st.got.includes(me.id)) plPub({ t: 'ans', r: st.r, pick: me.picks[st.r] });
+  }, 4000);
+  setTimeout(() => { if (live === me && !me.st) plShow('<div class="pcard" style="text-align:center">🔍 Không tìm thấy phòng <b>' + esc(code) + '</b>.<br>Có thể màn hình chính chưa mở hoặc đã đóng phòng.</div>'); }, 7000);
+  if (me.name) plSendJoin();
+}
+function plPub(m) { if (live && live.c) live.c.publish(TOPIC + live.code + '/up', JSON.stringify({ ...m, id: live.id }), { qos: 1 }); }
+function plSendJoin() { live.joinAt = Date.now(); plPub({ t: 'join', name: live.name }); }
+function plShow(html) { $('#live').innerHTML = `<div class="pl"><div class="lvtop" style="margin-bottom:12px"><h2>📱 Làm quen thầy cô</h2><span class="code" style="font-size:18px">${esc(live.code)}</span></div>${html}</div>`; }
+function onPlMsg(st) {
+  const me = live; if (!me || me.role !== 'pl' || !st || !st.v) return;
+  const prev = me.st; me.st = st;
+  if (!prev || prev.ph !== st.ph || prev.r !== st.r) {
+    me.sel = 0;
+    if (st.ph === 'lobby') me.cf = 0;
+    if (prev && st.ph === 'play') { beep('go'); if (navigator.vibrate) try { navigator.vibrate(150); } catch {} }
+    if (prev && st.ph === 'reveal') { const mine = st.pl[me.id]; beep(mine && mine[3] === LIVE_N ? 'win' : mine && mine[3] ? 'ok' : 'no'); }
+  }
+  drawPlayer();
+}
+function drawPlayer() {
+  const me = live, st = me.st;
+  if (!me.name) {
+    if ($('#pName')) return;                                    // đang gõ tên, không vẽ lại
+    plShow(`<div class="pcard"><h3>👋 Chào mừng!</h3><div class="muted">Nhập tên để vào phòng thi đấu</div>
+      <input type="text" id="pName" maxlength="30" placeholder="Họ tên của bạn" style="margin:12px 0" value="${esc(LS.get('nd_pname', ''))}">
+      <button class="btn" id="pJoin">Vào phòng ➜</button></div>`);
+    const go = () => { const v = $('#pName').value.trim(); if (!v) { $('#pName').focus(); return; } me.name = v; LS.set('nd_pname', v); beep('tick'); plSendJoin(); drawPlayer(); };
+    $('#pJoin').onclick = go; $('#pName').onkeydown = e => { if (e.key === 'Enter') go(); };
+    return;
+  }
+  if (!st) return;
+  if (st.ph === 'closed') { plShow('<div class="pcard" style="text-align:center"><h3>👋 Phòng đã đóng</h3>Cảm ơn bạn đã tham gia!</div>'); return; }
+  const mine = st.pl[me.id];
+  if (!mine) { plShow(`<div class="pcard" style="text-align:center">⏳ Đang vào phòng với tên <b>${esc(me.name)}</b>…</div>`); return; }
+  const hello = `<div style="margin-bottom:10px">Xin chào <b>${esc(me.name)}</b> · 👥 ${st.n} người · ⭐ ${mine[1]} điểm</div>`;
+  if (st.ph === 'lobby') {
+    plShow(`${hello}<div class="pcard" style="text-align:center"><div style="font-size:54px">⏳</div><h3>Đã vào phòng!</h3>
+      Hãy nhìn lên <b>màn hình chính</b>.<br>Trò chơi sẽ bắt đầu trong giây lát…
+      <div style="margin-top:14px"><button class="mini" id="pRename">✏️ Đổi tên</button></div></div>`);
+    $('#pRename').onclick = () => { me.name = ''; drawPlayer(); };
+  } else if (st.ph === 'play') {
+    const r = st.r, picks = me.picks[r] || (me.picks[r] = Array(LIVE_N).fill(null)), done = !!me.sent[r];
+    const slots = picks.map((n, k) => `<button class="slot ${n ? 'fill' : ''} ${!done && k === me.sel ? 'sel' : ''}" data-k="${k}"><b>${k + 1}</b>${n ? esc(n) : 'Chạm tên bên dưới để điền'}</button>`).join('');
+    if (done) {
+      const ok = st.got.includes(me.id);
+      plShow(`${hello}<div class="pcard"><h3>Vòng ${r}</h3><div class="slots">${slots}</div>
+        <div style="text-align:center;margin-top:14px;font-weight:700;color:var(--ok)">${ok ? '✅ Đã nộp! Chờ công bố đáp án trên màn hình chính…' : '📨 Đang gửi bài…'}</div></div>`);
+      return;
+    }
+    plShow(`${hello}<div class="pcard"><h3>Vòng ${r}: Ô nào là ai?</h3><div class="muted" style="margin-bottom:10px">Nhìn 5 ảnh trên màn hình chính 👀 Chọn ô, rồi chạm vào tên.</div>
+      <div class="slots">${slots}</div>
+      <div class="nchips">${st.names.map(n => `<button class="nchip ${picks.includes(n) ? 'used' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <button class="btn" id="pSend" ${picks.every(Boolean) ? '' : 'disabled style="opacity:.5"'}>📨 Nộp bài</button></div>`);
+    document.querySelectorAll('.slot').forEach(b => b.onclick = () => {
+      const k = +b.dataset.k;
+      if (k === me.sel && picks[k]) picks[k] = null;           // chạm lại ô đang chọn để xoá
+      me.sel = k; drawPlayer();
+    });
+    document.querySelectorAll('.nchip').forEach(b => b.onclick = () => {
+      const n = b.dataset.n, old = picks.indexOf(n);
+      if (old >= 0) picks[old] = null;
+      picks[me.sel] = n; beep('tick');
+      const next = picks.findIndex(x => !x); me.sel = next >= 0 ? next : me.sel;
+      drawPlayer();
+    });
+    $('#pSend').onclick = () => { if (!picks.every(Boolean)) return; me.sent[r] = Date.now(); plPub({ t: 'ans', r, pick: picks }); beep('ok'); drawPlayer(); };
+  } else if (st.ph === 'reveal') {
+    const c = mine[3], picks = mine[5];
+    const rows = st.ans.map((a, k) => {
+      const p = picks && picks[k], ok = p === a;
+      return `<div class="slot ${picks ? (ok ? 'ok' : 'no') : ''}"><b>${k + 1}</b><span>${picks ? (ok ? '✅ ' + esc(a) : `❌ <s>${esc(p)}</s><small>→ ${esc(a)}</small>`) : esc(a)}</span></div>`;
+    }).join('');
+    plShow(`${hello}<div class="pcard" style="text-align:center">${c == null ? '<h3>Bạn chưa nộp bài vòng này 😅</h3>'
+      : `<div class="pbig">${c}/${LIVE_N}</div><div class="muted">ô đúng</div><div style="font-size:22px;font-weight:800;color:#f59e0b;margin-top:6px">+${mine[4]} điểm</div>`}
+      <div style="margin-top:8px">Tổng: <b>${mine[1]}</b> điểm · Hạng <b>${mine[2]}</b>/${st.n}</div></div>
+      <div class="pcard"><h3>Đáp án vòng ${st.r}</h3><div class="slots">${rows}</div></div>`);
+  } else if (st.ph === 'end') {
+    const medal = ['🥇', '🥈', '🥉'][mine[2] - 1] || '🎖';
+    plShow(`<div class="pcard" style="text-align:center"><div style="font-size:70px">${medal}</div><h3>Kết thúc!</h3>
+      Bạn xếp hạng <b>${mine[2]}</b>/${st.n}<div class="pbig" style="margin-top:8px">${mine[1]}</div><div class="muted">điểm</div></div>`);
+    if (mine[2] <= 3 && !me.cf) { me.cf = 1; confetti(); }
+  }
+}
+
+/* ---------- Danh bạ ---------- */
+$('#q').oninput = renderDB;
+function renderDB() {
+  const L = pool(), q = slug($('#q').value);
+  const list = q ? L.filter(p => slug(p.ten + ' ' + p.mon + ' ' + p.ghiChu).includes(q)) : L;
+  $('#grid').innerHTML = list.map(p => `<button class="pc" data-id="${esc(p.id)}">${img(p)}<div><span class="dot">${box(p.id) >= THUOC ? '✅' : ''}</span><b>${esc(p.ten)}</b><br><small>${esc(p.mon || p.phanHieu)}</small></div></button>`).join('')
+    || (L.length ? '<div class="empty" style="grid-column:1/-1">Không tìm thấy.</div>' : `<div style="grid-column:1/-1">${emptyMsg()}</div>`);
+  document.querySelectorAll('.pc').forEach(b => b.onclick = () => openModal(people.find(p => p.id === b.dataset.id)));
+}
+function openModal(p) {
+  $('#mBox').innerHTML = `${img(p)}<div class="info"><div style="font-size:22px;font-weight:700;color:var(--c)">${esc(p.ten)}</div>
+    <div>${p.mon ? `<span class="tag">📘 ${esc(p.mon)}</span>` : ''}<span class="tag">🏫 ${esc(p.phanHieu)}</span></div>
+    ${p.ghiChu ? `<div class="muted" style="margin-top:6px">${esc(p.ghiChu)}</div>` : ''}</div>`;
+  $('#modal').classList.add('on');
+}
+$('#modal').onclick = () => $('#modal').classList.remove('on');
+
+/* ---------- Cài đặt ---------- */
+function renderCD() {
+  const opts = [...branches(), 'Tất cả'];
+  $('#selPH').innerHTML = opts.map(b => `<option ${b === settings.ph ? 'selected' : ''}>${esc(b)}</option>`).join('');
+  const L = pool(), thuoc = L.filter(p => box(p.id) >= THUOC).length, dang = L.filter(p => progress[p.id] && box(p.id) < THUOC).length;
+  $('#stat').innerHTML = `<div><b>${thuoc}</b><span>Đã nhớ</span></div><div><b>${dang}</b><span>Đang học</span></div><div><b>${L.length - thuoc - dang}</b><span>Chưa gặp</span></div>`;
+  $('#dsPH').innerHTML = [...new Set(['Hoành Sơn', 'Giao Tiến', ...branches()])].map(b => `<option value="${esc(b)}">`).join('');
+}
+$('#selPH').onchange = e => { settings.ph = e.target.value; LS.set('nd_settings', settings); curHoc = null; game = null; match = null; lastIds = []; updateHeader(); renderCD(); };
+
+function resizeImage(file, max = 480) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const s = Math.min(1, max / Math.max(im.width, im.height));
+      const c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.82));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Không đọc được ảnh ' + file.name)); };
+    im.src = url;
+  });
+}
+$('#impFile').onchange = async e => {
+  const files = [...e.target.files], ph = $('#impPH').value.trim() || 'Hoành Sơn';
+  if (!files.length) return;
+  const out = [], loi = [];
+  for (let i = 0; i < files.length; i++) {
+    $('#impMsg').textContent = `Đang xử lý ${i + 1}/${files.length}…`;
+    const f = files[i];
+    const base = f.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    const [ten, ...rest] = base.split(/\s+-\s+/);
+    try { out.push(norm({ ten: ten.trim(), mon: rest.join(' - '), phanHieu: ph, anh: await resizeImage(f), local: true })); }
+    catch (err) { loi.push(f.name); }
+  }
+  try { await DB.put(out); } catch (err) { toast('Không lưu được: ' + err.message); return; }
+  await loadPeople(); updateHeader(); renderCD();
+  $('#impMsg').innerHTML = `✅ Đã nhập ${out.length} ảnh vào phân hiệu <b>${esc(ph)}</b>.` + (loi.length ? ` Lỗi: ${esc(loi.join(', '))}` : '');
+  e.target.value = '';
+};
+$('#btnExport').onclick = () => {
+  if (!people.length) { toast('Chưa có dữ liệu để xuất'); return; }
+  const data = people.map(p => ({ ten: p.ten, phanHieu: p.phanHieu, mon: p.mon, ghiChu: p.ghiChu, anh: p.anh }));
+  const js = '// Danh sách thầy cô — tạo bởi ứng dụng "Làm quen thầy cô" ngày ' + new Date().toLocaleDateString('vi-VN') +
+    '\n// Mỗi dòng: ten, phanHieu, mon (môn dạy), ghiChu, anh (đường dẫn ảnh hoặc ảnh nhúng)\nwindow.DANH_SACH = [\n' +
+    data.map(d => '  ' + JSON.stringify(d)).join(',\n') + '\n];\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }));
+  a.download = 'danhsach.js'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Đã xuất ${data.length} thầy cô`);
+};
+$('#btnReset').onclick = () => { if (confirm('Xoá toàn bộ tiến độ học trên máy này?')) { progress = {}; LS.set('nd_progress', progress); game = null; match = null; updateHeader(); renderCD(); toast('Đã đặt lại tiến độ'); } };
+$('#btnClear').onclick = async () => { if (confirm('Xoá các ảnh đã nhập trên máy này? (Không ảnh hưởng tệp danhsach.js)')) { await DB.clear(); await loadPeople(); curHoc = null; game = null; match = null; updateHeader(); renderCD(); toast('Đã xoá ảnh đã nhập'); } };
+
+/* ---------- Khởi động ---------- */
+(async () => {
+  await loadPeople();
+  if (settings.ph !== 'Tất cả' && !branches().includes(settings.ph) && branches().length) settings.ph = branches()[0];
+  updateHeader(); renderHoc();
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('phong')) openPlayer(qs.get('phong').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), +qs.get('b') || 0);
+})();
+</script>
+</body>
+</html>
