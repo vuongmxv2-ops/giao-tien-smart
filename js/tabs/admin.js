@@ -179,7 +179,7 @@ export async function render(el, app) {
       const classSel = h('select', { multiple: true, style: 'min-height:120px' }, app.boot.classes.map(c => h('option', { value: c.class_id, selected: u.scopes.some(s => s.scope_type === 'CLASS' && s.scope_value === c.class_id) }, c.name)));
       const permBoxes = EXTRA_PERMS.map(([p, l]) => h('label', { style: 'display:block' }, h('input', { type: 'checkbox', value: p, checked: u.scopes.some(s => s.scope_type === 'PERM' && s.scope_value === p) }), ' ' + l));
       modal({ title: u.user_id ? 'Sửa tài khoản' : 'Thêm tài khoản', body: h('div', {}, field('Email Google', email), field('Tên đăng nhập (tài khoản mật khẩu – Sao đỏ)', uname, 'Tài khoản mới có tên đăng nhập được cấp mật khẩu ban đầu 123456, bắt đổi khi đăng nhập lần đầu.'), field('Họ và tên', name), field('Vai trò', role),
-        field('Cơ sở được phân công (Sao đỏ/BCH)', h('div', {}, campusBoxes)), field('Lớp phụ trách (GVCN) – giữ Ctrl để chọn nhiều', classSel), field('Quyền bổ sung', h('div', {}, permBoxes))),
+        field('Cơ sở được phân công (Sao đỏ/BCH: ghi nhận mọi lớp của cơ sở)', h('div', {}, campusBoxes)), field('Lớp phụ trách (GVCN) / lớp theo dõi (Sao đỏ) – giữ Ctrl để chọn nhiều', classSel, 'Sao đỏ theo dõi chéo: chỉ chọn lớp được theo dõi và bỏ tích cơ sở ở trên.'), field('Quyền bổ sung', h('div', {}, permBoxes))),
         actions: [{ label: 'Hủy' }, { label: 'Lưu', kind: 'primary', onClick: async () => {
           const scopes = [...campusBoxes.map(l => l.firstChild).filter(c => c.checked).map(c => ({ scope_type: 'CAMPUS', scope_value: c.value })),
             ...[...classSel.selectedOptions].map(o => ({ scope_type: 'CLASS', scope_value: o.value })),

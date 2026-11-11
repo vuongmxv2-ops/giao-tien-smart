@@ -11,6 +11,7 @@ export async function render(el, app, params) {
   const recordable = b.classes.filter(c => u.allScope || u.perms.includes('*') || u.campusIds.includes(c.campus_id) || u.classIds.includes(c.class_id));
   const campuses = b.campuses.filter(cs => recordable.some(c => c.campus_id === cs.campus_id));
   if (!recordable.length) { el.append(h('div', { class: 'notice red' }, 'Tài khoản chưa được phân công cơ sở/lớp để ghi nhận. Liên hệ Tổng phụ trách.')); return; }
+  if (u.role === 'RED_STAR' && !u.allScope && !u.campusIds.length) el.append(h('div', { class: 'notice' }, '📌 Lớp bạn được phân công theo dõi: ', h('b', {}, recordable.map(c => c.name).join(', '))));
 
   const camInput = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
   const libInput = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
@@ -32,7 +33,9 @@ export async function render(el, app, params) {
   const status = h('div');
 
   const fillClasses = () => {
-    fClass.replaceChildren(...options(recordable.filter(c => c.campus_id === fCampus.value), { value: 'class_id', label: 'name', empty: '— Chọn lớp —', selected: params.class_id }));
+    const list = recordable.filter(c => c.campus_id === fCampus.value);
+    // Chỉ được ghi nhận 1 lớp (Sao đỏ theo dõi chéo) → chọn sẵn lớp đó
+    fClass.replaceChildren(...options(list, { value: 'class_id', label: 'name', empty: '— Chọn lớp —', selected: params.class_id || (list.length === 1 ? list[0].class_id : undefined) }));
     loadStudents();
   };
   async function loadStudents() {

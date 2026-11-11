@@ -96,7 +96,8 @@ export function renderLogbook(box, app, { recordable, campuses }) {
   function addLine(prev) {
     const ln = { id: uid() + '-' + Date.now().toString(36), state: '' };
     const classes = () => recordable.filter(c => c.campus_id === fCampus.value);
-    ln.cls = h('select', {}, options(classes(), { value: 'class_id', label: 'name', empty: '— Lớp —', selected: prev?.cls.value }));
+    const cl = classes();
+    ln.cls = h('select', {}, options(cl, { value: 'class_id', label: 'name', empty: '— Lớp —', selected: prev?.cls.value || (cl.length === 1 ? cl[0].class_id : undefined) }));
     ln.time = time24(prev?.time.value || (fDate.value === todayKey ? nowHM() : '07:00'));
     ln.type = searchSelect({ placeholder: 'Gõ để tìm lỗi / nội dung tuyên dương', items: typeItems() });
     ln.student = searchSelect({ placeholder: 'Học sinh (bỏ trống nếu lỗi tập thể)', emptyLabel: '— Lỗi tập thể / không xác định —' });
