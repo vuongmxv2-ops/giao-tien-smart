@@ -914,6 +914,7 @@ function drawHost() {
   } else if (me.ph === 'play' || me.ph === 'reveal') {
     const rv = me.ph === 'reveal', ns = Object.keys(R.subs).length;
     body = `<div class="lvsub">${rv ? `🔓 Đáp án vòng ${me.r}` : `Vòng ${me.r}: nhìn ảnh, chọn tên đúng cho từng ô trên điện thoại!`}</div>
+      ${rv ? `<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 4px"><button class="lvbtn" id="hNext">▶ Vòng ${me.r + 1}</button><button class="lvbtn gray" id="hEnd">🏁 Kết thúc & trao giải</button></div>` : ''}
       ${rv ? '' : `<div class="lvtimer"><i id="hBar"></i></div>`}
       <div class="boxes">${R.people.map((p, k) => `<div class="bx" style="animation-delay:${rv ? 0 : k * .12}s"><span class="no">${k + 1}</span>${img(p)}
         <div class="nm ${rv ? '' : 'hid'}">${rv ? esc(p.ten) + `<span class="pct">✅ ${R.slotOk[k]}/${ns} người đúng</span>` : '?'}</div></div>`).join('')}</div>`;
@@ -924,8 +925,7 @@ function drawHost() {
     } else {
       const arr = rankList().slice(0, 10);
       body += `<div class="board">${arr.map(p => `<div class="r"><span class="rk">${['🥇', '🥈', '🥉'][p.rank - 1] || p.rank}</span><span class="pn">${esc(p.name)}</span>
-        <span class="pp">${p.last ? `${p.last.c}/${LIVE_N} · +${p.last.pts}` : 'chưa nộp'}</span><span class="pt">${p.total}</span></div>`).join('') || '<div class="r">Chưa có người chơi</div>'}</div>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button class="lvbtn" id="hNext">▶ Vòng ${me.r + 1}</button><button class="lvbtn gray" id="hEnd">🏁 Kết thúc & trao giải</button></div>`;
+        <span class="pp">${p.last ? `${p.last.c}/${LIVE_N} · +${p.last.pts}` : 'chưa nộp'}</span><span class="pt">${p.total}</span></div>`).join('') || '<div class="r">Chưa có người chơi</div>'}</div>`;
     }
   } else if (me.ph === 'end') {
     const a = rankList();
