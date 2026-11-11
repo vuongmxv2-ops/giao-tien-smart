@@ -21,6 +21,7 @@ export async function render(el, app) {
   sec('📚 Danh mục lỗi', typesSection);
   sec('📜 Nội quy – điểm cộng, điểm trừ (có phiên bản)', rulesSection);
   sec('👤 Tài khoản & phân quyền', usersSection);
+  sec('🚩 Sao đỏ – họ tên & lớp theo dõi', redStarSection);
   sec('🏫 Cơ sở trường', campusSection);
   sec('📅 Năm học, học kỳ, tuần thi đua', yearSection);
   sec('⚙️ Cài đặt khác', otherSettings);
@@ -188,6 +189,89 @@ export async function render(el, app) {
         } }] });
     }
     load();
+  }
+
+  /** Sao đỏ: sửa họ tên, chọn (nhiều) lớp theo dõi, tự phân công chéo theo khối, đặt lại mật khẩu. */
+  function redStarSection(body) {
+    let rows = [];
+    const dirty = new Map();
+    const nat = (a, b) => String(a).localeCompare(String(b), 'vi', { numeric: true });
+    const classes = [...app.boot.classes].sort((a, b) => nat(a.name, b.name));
+    const cname = id => app.classById(id)?.name || id;
+    const same = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    const saveBtn = h('button', { class: 'btn primary', disabled: true, onclick: save }, 'Lưu thay đổi');
+    const q = h('input', { type: 'search', placeholder: '🔎 Tìm theo lớp, họ tên, tên đăng nhập' });
+    const listBox = h('div');
+    q.addEventListener('input', draw);
+    body.append(
+      h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Mỗi Sao đỏ chỉ ghi nhận được các lớp ở cột "Lớp theo dõi" (chọn được nhiều lớp, không chọn lớp của chính mình). Khi thay bạn Sao đỏ khác: sửa họ tên, giữ nguyên tên đăng nhập và bấm "Đặt lại MK" để bạn mới đăng nhập bằng 123456.'),
+      h('div', { class: 'type-tools' }, q, saveBtn, h('button', { class: 'btn', onclick: auto }, '⚡ Tự phân công chéo theo khối')),
+      listBox);
+    load();
+
+    function cur(r) { return dirty.get(r.user_id) || { name: r.name, class_ids: r.class_ids }; }
+    function refreshBtn() { saveBtn.disabled = !dirty.size; saveBtn.textContent = dirty.size ? `💾 Lưu thay đổi (${dirty.size})` : 'Lưu thay đổi'; }
+    function mark(r, patch) {
+      const c = { ...cur(r), ...patch };
+      if (c.name === r.name && same(c.class_ids, r.class_ids)) dirty.delete(r.user_id); else dirty.set(r.user_id, c);
+      refreshBtn();
+    }
+    async function load() {
+      loading(listBox);
+      try { rows = await app.call('admin.redStars'); dirty.clear(); refreshBtn(); draw(); } catch (e) { errorBox(listBox, e, load); }
+    }
+    function draw() {
+      const words = fold(q.value).trim().split(/\s+/).filter(Boolean);
+      const vis = rows.filter(r => words.every(w => fold(`${r.own_class_name} ${cur(r).name} ${r.username}`).includes(w)));
+      const unassigned = rows.filter(r => !cur(r).class_ids.length).length;
+      listBox.replaceChildren(
+        h('div', { class: 'small muted', style: 'margin-bottom:4px' }, `${rows.length} Sao đỏ` + (unassigned ? ` · ⚠ ${unassigned} chưa phân công lớp` : '')),
+        table([
+          { label: 'Lớp', render: r => h('b', {}, r.own_class_name || '—') },
+          { label: 'Họ và tên', render: r => { const i = h('input', { type: 'text', value: cur(r).name, style: 'min-width:170px' }); i.addEventListener('input', () => mark(r, { name: i.value.trim() })); return i; } },
+          { label: 'Tên đăng nhập', render: r => h('span', {}, r.username || r.email, r.must_change_pw ? h('span', { class: 'badge yellow', style: 'margin-left:6px' }, 'chưa đổi MK') : '') },
+          { label: 'Lớp theo dõi', render: r => { const c = cur(r).class_ids; return h('button', { class: 'btn sm' + (c.length ? '' : ' red'), onclick: () => pick(r) }, c.length ? '✎ ' + c.map(cname).sort(nat).join(', ') : '⚠ Chưa phân công'); } },
+          { label: '', render: r => r.username ? h('button', { class: 'btn sm ghost', onclick: () => reset(r) }, '🔑 Đặt lại MK') : '' }
+        ], vis, { empty: 'Chưa có tài khoản Sao đỏ.' }));
+    }
+    function pick(r) {
+      const sel = new Set(cur(r).class_ids);
+      const groups = {};
+      classes.forEach(c => { const k = (String(c.name).match(/^\d+/) || ['Khác'])[0]; (groups[k] = groups[k] || []).push(c); });
+      const boxes = Object.keys(groups).sort(nat).map(k => h('div', { style: 'margin-bottom:10px' },
+        h('div', { class: 'small muted', style: 'margin-bottom:4px' }, 'Khối ' + k),
+        h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px 16px' }, groups[k].map(c => {
+          const own = c.class_id === r.own_class_id;
+          const cb = h('input', { type: 'checkbox', checked: sel.has(c.class_id), disabled: own });
+          cb.addEventListener('change', () => { cb.checked ? sel.add(c.class_id) : sel.delete(c.class_id); });
+          return h('label', { style: 'display:inline-flex;align-items:center;gap:4px;min-width:64px' + (own ? ';opacity:.45' : ''), title: own ? 'Lớp của chính Sao đỏ này' : '' }, cb, c.name);
+        }))));
+      modal({ title: `Lớp theo dõi – ${cur(r).name}${r.own_class_name ? ' (Sao đỏ ' + r.own_class_name + ')' : ''}`, body: h('div', {}, ...boxes),
+        actions: [{ label: 'Hủy' }, { label: 'Chọn xong', kind: 'primary', onClick: () => { mark(r, { class_ids: [...sel] }); draw(); } }] });
+    }
+    async function save() {
+      for (const [, v] of dirty) if (v.name.length < 2) return toast('Họ và tên Sao đỏ không được để trống.', 'err');
+      saveBtn.disabled = true;
+      try {
+        rows = await app.call('admin.saveRedStars', { items: [...dirty].map(([user_id, v]) => ({ user_id, name: v.name, class_ids: v.class_ids })) });
+        dirty.clear(); refreshBtn(); draw(); toast('Đã lưu phân công Sao đỏ', 'ok');
+      } catch (e) { toast(e.message, 'err'); refreshBtn(); }
+    }
+    async function auto() {
+      if (dirty.size && !await confirmBox('Bỏ thay đổi chưa lưu?', 'Có thay đổi chưa lưu sẽ bị bỏ khi tự phân công.', 'Tiếp tục', 'red')) return;
+      if (!await confirmBox('Tự phân công chéo theo khối', 'Mỗi Sao đỏ sẽ theo dõi 1 lớp kế tiếp cùng khối, cùng khu: 6A1→6A2 … 6A6→6A1; 6B1→6B2→6B3→6B1; các khối khác tương tự. Phân công hiện tại sẽ bị thay thế.', 'Phân công')) return;
+      try {
+        const r = await app.call('admin.crossAssignRedStars');
+        rows = r.items; dirty.clear(); refreshBtn(); draw();
+        toast(`Đã phân công ${r.done.length} Sao đỏ` + (r.errors.length ? `, ${r.errors.length} không xác định được lớp` : ''), r.errors.length ? 'warn' : 'ok', 6000);
+        if (r.errors.length) modal({ title: 'Không phân công được', body: h('pre', { class: 'text' }, r.errors.join('\n')) });
+      } catch (e) { toast(e.message, 'err'); }
+    }
+    async function reset(r) {
+      if (!await confirmBox('Đặt lại mật khẩu', `Đặt lại mật khẩu của ${cur(r).name} (${r.username}) về 123456? Lần đăng nhập tới sẽ bắt buộc đổi mật khẩu mới.`, 'Đặt lại')) return;
+      try { await app.call('admin.resetPassword', { user_id: r.user_id }); toast(`Đã đặt lại: ${r.username} / 123456`, 'ok', 6000); r.must_change_pw = true; draw(); }
+      catch (e) { toast(e.message, 'err'); }
+    }
   }
 
   function campusSection(body) {
