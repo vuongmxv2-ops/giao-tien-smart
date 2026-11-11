@@ -1,5 +1,6 @@
 import { h, options, field, toast, signed, uid, blobToB64, searchSelect, modal, confirmBox, time24 } from '../ui.js';
 import { processImage } from '../image.js';
+import { parseLogbook, matchStudent } from '../quicklog.js';
 
 /**
  * NHẬP TỪ SỔ TRỰC (trong tab Ghi nhận)
@@ -93,26 +94,32 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     return arr.map(s => ({ value: s.student_id, label: count[s.full_name] > 1 ? `${s.full_name} (${seen[s.full_name] = (seen[s.full_name] || 0) + 1})` : s.full_name }));
   }
 
-  function addLine(prev) {
-    const ln = { id: uid() + '-' + Date.now().toString(36), state: '' };
+  function addLine(prev, preset = {}) {
+    const ln = { id: uid() + '-' + Date.now().toString(36), state: '', customDate: !!preset.date };
     const classes = () => recordable.filter(c => c.campus_id === fCampus.value);
     const cl = classes();
-    ln.cls = h('select', {}, options(cl, { value: 'class_id', label: 'name', empty: '— Lớp —', selected: prev?.cls.value || (cl.length === 1 ? cl[0].class_id : undefined) }));
-    ln.time = time24(prev?.time.value || (fDate.value === todayKey ? nowHM() : '07:00'));
+    ln.cls = h('select', {}, options(cl, { value: 'class_id', label: 'name', empty: '— Lớp —', selected: preset.classId || prev?.cls.value || (cl.length === 1 ? cl[0].class_id : undefined) }));
+    ln.date = h('input', { type: 'date', value: preset.date || prev?.date.value || fDate.value, max: todayKey, min: minKey });
+    ln.date.addEventListener('change', () => { ln.customDate = true; });
+    ln.time = time24(preset.time || prev?.time.value || (fDate.value === todayKey ? nowHM() : '07:00'));
     ln.type = searchSelect({ placeholder: 'Gõ để tìm lỗi / nội dung tuyên dương', items: typeItems() });
     ln.student = searchSelect({ placeholder: 'Học sinh (bỏ trống nếu lỗi tập thể)', emptyLabel: '— Lỗi tập thể / không xác định —' });
-    ln.note = h('input', { type: 'text', placeholder: 'Ghi chú (ví dụ: dòng 5 trong sổ)' });
-    ln.badge = h('span', { class: 'badge' }, 'Dòng mới');
+    ln.note = h('input', { type: 'text', placeholder: 'Ghi chú (ví dụ: dòng 5 trong sổ)', value: preset.note || '' });
+    ln.badge = h('span', { class: preset.warn?.length ? 'badge yellow' : 'badge' }, preset.warn?.length ? '⚠ Kiểm tra' : preset.typeId ? 'Đã điền sẵn' : 'Dòng mới');
+    ln.warnEl = h('div', { class: 'small', style: 'color:#92400e', hidden: !preset.warn?.length }, preset.warn?.length ? '⚠ ' + preset.warn.join(' · ') : '');
+    if (preset.typeId) ln.type.value = preset.typeId;
     ln.cls.addEventListener('change', async () => { ln.student.setItems(await studentsOf(ln.cls.value)); });
-    if (ln.cls.value) studentsOf(ln.cls.value).then(items => ln.student.setItems(items));
+    if (ln.cls.value) studentsOf(ln.cls.value).then(items => { ln.student.setItems(items); if (preset.studentId) ln.student.value = preset.studentId; });
     ln.el = h('div', { class: 'lb-line' },
       h('div', { class: 'lb-head' }, h('b', { class: 'lb-no' }), ln.badge,
         h('button', { class: 'btn sm ghost', type: 'button', style: 'margin-left:auto', onclick: () => {
           if (ln.state === 'done') return toast('Dòng đã gửi, không xóa được ở đây.', 'warn');
           lines = lines.filter(x => x !== ln); ln.el.remove(); renumber();
         } }, '✕ Bỏ dòng')),
-      h('div', { class: 'grid c2' }, field('Lớp', ln.cls), field('Giờ (theo sổ)', ln.time)),
+      ln.warnEl,
+      h('div', { class: 'grid c2' }, field('Lớp', ln.cls), field('Ngày (theo sổ)', ln.date)), field('Giờ (theo sổ)', ln.time),
       field('Lỗi vi phạm / nội dung tuyên dương', ln.type), field('Học sinh', ln.student), field('Ghi chú', ln.note));
+    if (preset.warn?.length) ln.el.style.borderColor = '#f59e0b';
     lines.push(ln); list.append(ln.el); renumber();
     return ln;
   }
@@ -122,8 +129,79 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     ln.badge.className = 'badge ' + (state === 'done' ? 'green' : state === 'err' ? 'red' : state === 'sending' ? 'blue' : '');
     ln.badge.textContent = text;
     ln.el.classList.toggle('done', state === 'done');
-    [ln.cls, ln.time, ln.note].forEach(x => { x.disabled = state === 'done'; });
+    [ln.cls, ln.date, ln.time, ln.note].forEach(x => { x.disabled = state === 'done'; });
+    if (state === 'done' && ln.warnEl) ln.warnEl.hidden = true;
   }
+  fDate.addEventListener('change', () => lines.filter(l => l.state !== 'done' && !l.customDate).forEach(l => { l.date.value = fDate.value; }));
+
+  /* ---------- NHẬP NHANH: gõ/đọc theo sổ → tự tách thành các dòng ---------- */
+  const typeByCode = code => b.types.find(t => t.code === code);
+  const isBlank = ln => ln.state !== 'done' && !ln.type.value && !ln.student.value && !ln.note.value.trim();
+  const quickText = h('textarea', { rows: 7, placeholder: 'Chép lại sổ, mỗi ý một dòng. Ví dụ:\nNgày 28/10/2026\nTrần Linh Nhi không sơ vin\nMai Phước Thiện, Lê Đăng Khoa không mũ\nNói chuyện: Cao Bảo Hân, Hoàng Dũng\nBuổi chiều\nXếp hàng muộn', style: 'font-size:15px' });
+  const quickInfo = h('div', { class: 'small' });
+  async function quickParse() {
+    const txt = quickText.value.trim();
+    if (!txt) return toast('Chưa có nội dung để tách.', 'warn');
+    const cls = recordable.filter(c => c.campus_id === fCampus.value);
+    const defCls = cls.length === 1 ? cls[0].class_id : (lines.find(l => l.cls.value)?.cls.value || '');
+    const recs = parseLogbook(txt, { classes: recordable, defaultClassId: defCls, defaultDate: fDate.value, year: +todayKey.slice(0, 4) });
+    if (!recs.length) return toast('Không tách được dòng nào. Mỗi ý viết trên một dòng: tên học sinh + lỗi.', 'warn', 6000);
+    quickInfo.replaceChildren(h('span', { class: 'spinner sm' }), ' Đang đối chiếu tên học sinh…');
+    lines.filter(isBlank).forEach(l => { lines = lines.filter(x => x !== l); l.el.remove(); });
+    let warnCount = 0;
+    for (const r of recs) {
+      const warn = [...r.warn];
+      const classId = r.classId || defCls;
+      if (!classId) warn.push('Chọn lớp');
+      if (r.date && (r.date > todayKey || r.date < minKey)) warn.push('Ngày ' + r.date.split('-').reverse().join('/') + ' ngoài thời gian được nhập');
+      let studentId = '';
+      if (r.name && classId) {
+        const m = matchStudent(r.name, await studentsOf(classId));
+        if (m.value) studentId = m.value;
+        else warn.push(m.candidates.length ? `Nhiều bạn tên "${r.name}" – chọn đúng học sinh` : `Không tìm thấy "${r.name}" trong lớp – chọn học sinh`);
+      }
+      const t = r.code ? typeByCode(r.code) : null;
+      if (r.code && !t) warn.push('Danh mục chưa có lỗi này – chọn lỗi');
+      const uniq = [...new Set(warn)];
+      if (uniq.length) warnCount++;
+      addLine(null, { classId, date: r.dateInvalid ? '' : r.date, time: r.time, typeId: t?.type_id || '', studentId,
+        note: `Sổ dòng ${r.line}: ${r.raw}`.slice(0, 180), warn: uniq });
+    }
+    quickText.value = '';
+    quickInfo.replaceChildren(h('div', { class: warnCount ? 'notice yellow' : 'notice green' },
+      `Đã tách ${recs.length} bản ghi` + (warnCount ? `, ${warnCount} dòng tô vàng cần kiểm tra/chọn lại.` : ', tất cả đã điền đủ.') + ' Xem lại bên dưới rồi bấm GỬI TẤT CẢ.'));
+    list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ---------- MỘT LỖI – NHIỀU HỌC SINH ---------- */
+  async function bulkPick() {
+    const cls = recordable.filter(c => c.campus_id === fCampus.value);
+    const fCls = h('select', {}, options(cls, { value: 'class_id', label: 'name', empty: '— Lớp —', selected: cls.length === 1 ? cls[0].class_id : undefined }));
+    const fType = searchSelect({ placeholder: 'Gõ để tìm lỗi', items: typeItems() });
+    const fD = h('input', { type: 'date', value: fDate.value, max: todayKey, min: minKey });
+    const fT = time24(fDate.value === todayKey ? nowHM() : '07:00');
+    const box2 = h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px 14px;max-height:45vh;overflow:auto' });
+    const fill = async () => {
+      box2.replaceChildren();
+      for (const s of await studentsOf(fCls.value)) {
+        const cb = h('input', { type: 'checkbox', value: s.value });
+        box2.append(h('label', { style: 'display:inline-flex;align-items:center;gap:6px;min-width:190px' }, cb, s.label));
+      }
+      if (!box2.children.length) box2.append(h('div', { class: 'muted small' }, fCls.value ? 'Không tải được danh sách học sinh.' : 'Chọn lớp trước.'));
+    };
+    fCls.addEventListener('change', fill); fill();
+    modal({ title: '👥 Một lỗi – nhiều học sinh', wide: true,
+      body: h('div', {}, h('div', { class: 'grid c2' }, field('Lớp', fCls), field('Ngày', fD)), field('Giờ', fT), field('Lỗi vi phạm / nội dung tuyên dương', fType), field('Tích các học sinh', box2)),
+      actions: [{ label: 'Hủy' }, { label: 'Thêm các dòng', kind: 'primary', onClick: () => {
+        const ids = [...box2.querySelectorAll('input:checked')].map(x => x.value);
+        if (!fType.value) { toast('Chọn lỗi.', 'err'); return false; }
+        if (!ids.length) { toast('Tích ít nhất một học sinh.', 'err'); return false; }
+        lines.filter(isBlank).forEach(l => { lines = lines.filter(x => x !== l); l.el.remove(); });
+        ids.forEach(id => addLine(null, { classId: fCls.value, date: fD.value, time: fT.value, typeId: fType.value, studentId: id }));
+        toast(`Đã thêm ${ids.length} dòng.`, 'ok');
+      } }] });
+  }
+
   fCampus.addEventListener('change', () => lines.filter(l => l.state !== 'done').forEach(l => {
     l.cls.replaceChildren(...options(recordable.filter(c => c.campus_id === fCampus.value), { value: 'class_id', label: 'name', empty: '— Lớp —' }));
     l.student.setItems([]);
@@ -136,13 +214,21 @@ export function renderLogbook(box, app, { recordable, campuses }) {
       h('button', { class: 'btn', type: 'button', style: 'min-height:80px', onclick: () => pick.click() }, '🖼️ Chọn ảnh trang sổ từ thư viện')),
     cam, pick, h('div', { style: 'margin:10px 0' }, thumbs, photoBar),
     h('div', { class: 'grid c2' }, field('Cơ sở', fCampus), field('Ngày trực (theo sổ)', fDate, 'Được nhập lại các ngày trong tuần đó (thứ Sáu, thứ Bảy, Chủ nhật vẫn nhập bù được cho tuần trước).')),
+    h('details', { class: 'acc', open: true, style: 'margin:6px 0 12px' }, h('summary', {}, '✍️ Nhập nhanh: gõ hoặc nói theo sổ, ứng dụng tự tách dòng'),
+      h('div', { style: 'padding-top:8px' },
+        h('div', { class: 'small muted', style: 'margin-bottom:6px' }, 'Mỗi ý một dòng: tên học sinh + lỗi (có thể nhiều tên, nhiều lỗi cách nhau dấu phẩy). Dòng ghi ngày (28/10/2026) hoặc buổi (Buổi chiều, HĐGG, chào cờ) áp dụng cho các dòng sau. Có thể bấm 🎤 trên bàn phím điện thoại để đọc thay vì gõ.'),
+        quickText,
+        h('div', { class: 'grid c2', style: 'margin-top:8px' },
+          h('button', { class: 'btn primary', type: 'button', onclick: quickParse }, '⚡ Tách thành các dòng'),
+          h('button', { class: 'btn', type: 'button', onclick: bulkPick }, '👥 Một lỗi – nhiều học sinh')),
+        quickInfo)),
     list,
     h('button', { class: 'btn block', type: 'button', style: 'margin:4px 0 12px;border-style:dashed', onclick: () => addLine(lines[lines.length - 1]) }, '＋ Thêm dòng'),
     h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Người ghi nhận: ', h('b', {}, app.user.full_name)),
     sendBtn, status));
   addLine();
 
-  function occurredAt(ln) { return `${fDate.value}T${ln.time.value || '07:00'}:00+07:00`; }
+  function occurredAt(ln) { return `${ln.date.value || fDate.value}T${ln.time.value || '07:00'}:00+07:00`; }
   function lineData(ln) {
     return { client_request_id: ln.id, class_id: ln.cls.value, type_id: ln.type.value, student_id: ln.student.value, note: ('[Sổ trực] ' + ln.note.value.trim()).trim(), occurred_at: occurredAt(ln) };
   }
@@ -152,8 +238,9 @@ export function renderLogbook(box, app, { recordable, campuses }) {
     const todo = lines.filter(l => l.state !== 'done');
     if (!todo.length) return toast('Không còn dòng nào cần gửi.', 'warn');
     if (b.settings.require_evidence === '1' && !photos.length) return toast('Cần chụp hoặc chọn ảnh trang sổ.', 'err');
-    if (!fDate.value || fDate.value > todayKey || fDate.value < minKey) return toast('Ngày trực phải nằm trong tuần thi đua hiện tại (T6, T7, CN được nhập bù tuần trước), không sau hôm nay.', 'err');
     for (const [i, ln] of todo.entries()) {
+      const dk = ln.date.value;
+      if (!dk || dk > todayKey || dk < minKey) return toast(`Dòng ${lines.indexOf(ln) + 1}: ngày ${dk ? dk.split('-').reverse().join('/') : '(trống)'} ngoài thời gian được nhập (tuần thi đua hiện tại; T6, T7, CN được nhập bù tuần trước). Sửa ngày hoặc bỏ dòng.`, 'err', 7000);
       if (!ln.cls.value) return toast(`Dòng ${lines.indexOf(ln) + 1}: chọn lớp.`, 'err');
       if (!ln.type.value) return toast(`Dòng ${lines.indexOf(ln) + 1}: chọn lỗi hoặc nội dung tuyên dương.`, 'err');
       if (Date.parse(occurredAt(ln)) > Date.now() + 60000) return toast(`Dòng ${lines.indexOf(ln) + 1}: giờ không được ở tương lai.`, 'err');
