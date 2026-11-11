@@ -735,6 +735,34 @@ const LIB_MQTT = ['https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js', 'https
 const LIB_QR = ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', 'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js'];
 let live = null;
 
+/* Nhạc nền khi đồng hồ chạy: to đều, nhỏ dần trong BGM_FADE giây cuối, tắt khi hết giờ */
+const BGM_SRC = 'nhac/nhac_trao_giai.mp3', BGM_VOL = 0.7, BGM_FADE = 15;
+let bgm = null, bgmIv = null;
+function musicStart() {
+  musicStop(true);
+  if (!sound) return;
+  try {
+    if (!bgm) { bgm = new Audio(BGM_SRC); bgm.loop = true; }
+    bgm.currentTime = 0; bgm.volume = BGM_VOL; bgm.play().catch(() => {});
+    const end = Date.now() + LIVE_T * 1000;
+    bgmIv = setInterval(() => {
+      const left = (end - Date.now()) / 1000;
+      bgm.volume = Math.max(0, Math.min(BGM_VOL, BGM_VOL * left / BGM_FADE));
+      if (left <= 0) musicStop(true);
+    }, 100);
+  } catch {}
+}
+function musicStop(now) {
+  clearInterval(bgmIv); bgmIv = null;
+  if (!bgm || bgm.paused) return;
+  if (now) { bgm.pause(); return; }
+  const v0 = bgm.volume, t0 = Date.now();                       // dừng sớm: nhỏ dần trong 0,8 giây
+  bgmIv = setInterval(() => {
+    const k = (Date.now() - t0) / 800;
+    if (k >= 1) { clearInterval(bgmIv); bgmIv = null; bgm.pause(); } else bgm.volume = v0 * (1 - k);
+  }, 50);
+}
+
 function loadScript(srcs) {
   return new Promise((res, rej) => {
     let i = 0;
@@ -792,6 +820,7 @@ function closeLive() {
     const c = live.c; setTimeout(() => c.end(), 500);
   }
   if (live) { clearInterval(live.ti); clearInterval(live.pi); }
+  musicStop(true);
   live = null;
   document.body.classList.remove('live');
   $('#live').innerHTML = '';
@@ -855,7 +884,7 @@ function newRound() {
   me.round = { people, names: shuffle([...people.map(p => p.ten), ...decoys]), subs: {} };
   Object.values(me.players).forEach(p => p.last = null);
   clearInterval(me.ti); me.left = LIVE_T;
-  me.ph = 'play'; pubState(true); drawHost(); beep('go');
+  me.ph = 'play'; pubState(true); drawHost(); beep('go'); musicStart();
   const r = me.r;
   me.ti = setInterval(() => {
     if (live !== me || me.ph !== 'play' || me.r !== r) return clearInterval(me.ti);
@@ -868,7 +897,7 @@ function newRound() {
 }
 function reveal() {
   const me = live; if (!me || me.ph !== 'play') return;
-  clearInterval(me.ti);
+  clearInterval(me.ti); musicStop();
   const R = me.round, ans = R.people.map(p => p.ten);
   R.slotOk = Array(LIVE_N).fill(0);
   let order = 0;
