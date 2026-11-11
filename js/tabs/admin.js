@@ -21,7 +21,7 @@ export async function render(el, app) {
   sec('📚 Danh mục lỗi', typesSection);
   sec('📜 Nội quy – điểm cộng, điểm trừ (có phiên bản)', rulesSection);
   sec('👤 Tài khoản & phân quyền', usersSection);
-  sec('🚩 Sao đỏ – họ tên & lớp theo dõi', redStarSection);
+  sec('👥 Sao đỏ, BCH Liên đội, GVCN – họ tên & phân công', membersSection);
   sec('🏫 Cơ sở trường', campusSection);
   sec('📅 Năm học, học kỳ, tuần thi đua', yearSection);
   sec('⚙️ Cài đặt khác', otherSettings);
@@ -191,70 +191,106 @@ export async function render(el, app) {
     load();
   }
 
-  /** Sao đỏ: sửa họ tên, chọn (nhiều) lớp theo dõi, tự phân công chéo theo khối, đặt lại mật khẩu. */
-  function redStarSection(body) {
-    let rows = [];
+  /** Sao đỏ, BCH Liên đội, GVCN: sửa họ tên, lớp, phạm vi (lớp theo dõi / chủ nhiệm / cơ sở), đặt lại mật khẩu. */
+  function membersSection(body) {
+    const ROLE_UI = {
+      RED_STAR: { tab: '🚩 Sao đỏ', who: 'Sao đỏ', col: 'Lớp theo dõi', campus: false, ownEdit: false,
+        help: 'Mỗi Sao đỏ chỉ ghi nhận được các lớp ở cột "Lớp theo dõi" (chọn được nhiều lớp, không chọn lớp của chính mình). Khi thay bạn Sao đỏ khác: sửa họ tên, giữ nguyên tên đăng nhập và bấm "Đặt lại MK".' },
+      YOUTH_COMMAND: { tab: '🎖️ BCH Liên đội', who: 'BCH', col: 'Phạm vi ghi nhận', campus: true, ownEdit: true,
+        help: 'BCH Liên đội ghi nhận được ở các khu và/hoặc các lớp được chọn ở cột "Phạm vi ghi nhận". Cột "Lớp" là lớp đang học của em (đổi được khi em lên lớp hoặc chuyển lớp).' },
+      HOMEROOM_TEACHER: { tab: '👩‍🏫 GVCN', who: 'GVCN', col: 'Lớp chủ nhiệm', campus: false, ownEdit: false,
+        help: 'GVCN chỉ xem được dữ liệu của lớp ở cột "Lớp chủ nhiệm". Khi đổi GVCN: sửa họ tên (tên GVCN trong danh sách lớp cũng được cập nhật), giữ nguyên tên đăng nhập và bấm "Đặt lại MK".' }
+    };
+    let role = 'RED_STAR', rows = [];
     const dirty = new Map();
     const nat = (a, b) => String(a).localeCompare(String(b), 'vi', { numeric: true });
     const classes = [...app.boot.classes].sort((a, b) => nat(a.name, b.name));
     const cname = id => app.classById(id)?.name || id;
+    const campName = id => app.campusName(id) || id;
     const same = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    const seg = h('div', { class: 'seg', style: 'margin-bottom:10px' });
+    const helpBox = h('div', { class: 'small muted', style: 'margin-bottom:8px' });
     const saveBtn = h('button', { class: 'btn primary', disabled: true, onclick: save }, 'Lưu thay đổi');
+    const autoBtn = h('button', { class: 'btn', onclick: auto }, '⚡ Tự phân công chéo theo khối');
     const q = h('input', { type: 'search', placeholder: '🔎 Tìm theo lớp, họ tên, tên đăng nhập' });
     const listBox = h('div');
     q.addEventListener('input', draw);
-    body.append(
-      h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Mỗi Sao đỏ chỉ ghi nhận được các lớp ở cột "Lớp theo dõi" (chọn được nhiều lớp, không chọn lớp của chính mình). Khi thay bạn Sao đỏ khác: sửa họ tên, giữ nguyên tên đăng nhập và bấm "Đặt lại MK" để bạn mới đăng nhập bằng 123456.'),
-      h('div', { class: 'type-tools' }, q, saveBtn, h('button', { class: 'btn', onclick: auto }, '⚡ Tự phân công chéo theo khối')),
-      listBox);
-    load();
+    const segBtns = Object.keys(ROLE_UI).map(k => { const b = h('button', { type: 'button', onclick: () => switchRole(k) }, ROLE_UI[k].tab); b.dataset.k = k; seg.append(b); return b; });
+    body.append(seg, helpBox, h('div', { class: 'type-tools' }, q, saveBtn, autoBtn), listBox);
+    switchRole('RED_STAR');
 
-    function cur(r) { return dirty.get(r.user_id) || { name: r.name, class_ids: r.class_ids }; }
+    async function switchRole(k) {
+      if (dirty.size && k !== role && !await confirmBox('Bỏ thay đổi chưa lưu?', `Có ${dirty.size} thay đổi chưa lưu ở nhóm ${ROLE_UI[role].who}.`, 'Bỏ thay đổi', 'red')) return;
+      role = k; dirty.clear(); refreshBtn();
+      segBtns.forEach(b => b.classList.toggle('on', b.dataset.k === k));
+      helpBox.textContent = ROLE_UI[k].help;
+      autoBtn.hidden = k !== 'RED_STAR';
+      load();
+    }
+    function cur(r) { return dirty.get(r.user_id) || { name: r.name, own_class_id: r.own_class_id, class_ids: r.class_ids, campus_ids: r.campus_ids }; }
     function refreshBtn() { saveBtn.disabled = !dirty.size; saveBtn.textContent = dirty.size ? `💾 Lưu thay đổi (${dirty.size})` : 'Lưu thay đổi'; }
     function mark(r, patch) {
       const c = { ...cur(r), ...patch };
-      if (c.name === r.name && same(c.class_ids, r.class_ids)) dirty.delete(r.user_id); else dirty.set(r.user_id, c);
+      if (c.name === r.name && c.own_class_id === r.own_class_id && same(c.class_ids, r.class_ids) && same(c.campus_ids, r.campus_ids)) dirty.delete(r.user_id); else dirty.set(r.user_id, c);
       refreshBtn();
     }
     async function load() {
       loading(listBox);
-      try { rows = await app.call('admin.redStars'); dirty.clear(); refreshBtn(); draw(); } catch (e) { errorBox(listBox, e, load); }
+      const want = role;
+      try { const data = await app.call('admin.members', { role: want }); if (want !== role) return; rows = data; dirty.clear(); refreshBtn(); draw(); }
+      catch (e) { errorBox(listBox, e, load); }
+    }
+    function scopeText(c) {
+      const parts = [...(c.campus_ids || []).map(campName), ...c.class_ids.map(cname).sort(nat)];
+      return parts.join(', ');
     }
     function draw() {
+      const ui = ROLE_UI[role];
       const words = fold(q.value).trim().split(/\s+/).filter(Boolean);
-      const vis = rows.filter(r => words.every(w => fold(`${r.own_class_name} ${cur(r).name} ${r.username}`).includes(w)));
-      const unassigned = rows.filter(r => !cur(r).class_ids.length).length;
+      const vis = rows.filter(r => words.every(w => fold(`${cname(cur(r).own_class_id)} ${cur(r).name} ${r.username} ${r.email}`).includes(w)));
+      const unassigned = rows.filter(r => !cur(r).class_ids.length && !(cur(r).campus_ids || []).length).length;
       listBox.replaceChildren(
-        h('div', { class: 'small muted', style: 'margin-bottom:4px' }, `${rows.length} Sao đỏ` + (unassigned ? ` · ⚠ ${unassigned} chưa phân công lớp` : '')),
+        h('div', { class: 'small muted', style: 'margin-bottom:4px' }, `${rows.length} ${ui.who}` + (unassigned ? ` · ⚠ ${unassigned} chưa phân công` : '')),
         table([
-          { label: 'Lớp', render: r => h('b', {}, r.own_class_name || '—') },
+          { label: 'Lớp', render: r => {
+            if (!ui.ownEdit || r.own_fixed) return h('b', {}, r.own_class_name || '—');
+            const s = h('select', { style: 'min-width:80px' }, options(classes, { value: 'class_id', label: 'name', empty: '—', selected: cur(r).own_class_id }));
+            s.addEventListener('change', () => mark(r, { own_class_id: s.value }));
+            return s;
+          } },
           { label: 'Họ và tên', render: r => { const i = h('input', { type: 'text', value: cur(r).name, style: 'min-width:170px' }); i.addEventListener('input', () => mark(r, { name: i.value.trim() })); return i; } },
-          { label: 'Tên đăng nhập', render: r => h('span', {}, r.username || r.email, r.must_change_pw ? h('span', { class: 'badge yellow', style: 'margin-left:6px' }, 'chưa đổi MK') : '') },
-          { label: 'Lớp theo dõi', render: r => { const c = cur(r).class_ids; return h('button', { class: 'btn sm' + (c.length ? '' : ' red'), onclick: () => pick(r) }, c.length ? '✎ ' + c.map(cname).sort(nat).join(', ') : '⚠ Chưa phân công'); } },
+          { label: 'Tên đăng nhập', render: r => h('span', {}, r.username || r.email, r.must_change_pw ? h('span', { class: 'badge yellow', style: 'margin-left:6px' }, 'chưa đổi MK') : '', r.status !== 'ACTIVE' ? h('span', { class: 'badge red', style: 'margin-left:6px' }, 'đã khóa') : '') },
+          { label: ui.col, render: r => { const t = scopeText(cur(r)); return h('button', { class: 'btn sm' + (t ? '' : ' red'), onclick: () => pick(r) }, t ? '✎ ' + t : '⚠ Chưa phân công'); } },
           { label: '', render: r => r.username ? h('button', { class: 'btn sm ghost', onclick: () => reset(r) }, '🔑 Đặt lại MK') : '' }
-        ], vis, { empty: 'Chưa có tài khoản Sao đỏ.' }));
+        ], vis, { empty: `Chưa có tài khoản ${ui.who}.` }));
     }
     function pick(r) {
-      const sel = new Set(cur(r).class_ids);
+      const ui = ROLE_UI[role], c = cur(r);
+      const sel = new Set(c.class_ids), camps = new Set(c.campus_ids || []);
+      const ownId = role === 'RED_STAR' ? c.own_class_id : '';
       const groups = {};
-      classes.forEach(c => { const k = (String(c.name).match(/^\d+/) || ['Khác'])[0]; (groups[k] = groups[k] || []).push(c); });
-      const boxes = Object.keys(groups).sort(nat).map(k => h('div', { style: 'margin-bottom:10px' },
+      classes.forEach(x => { const k = (String(x.name).match(/^\d+/) || ['Khác'])[0]; (groups[k] = groups[k] || []).push(x); });
+      const chk = (checked, disabled, onChange, text, title) => {
+        const cb = h('input', { type: 'checkbox', checked, disabled });
+        cb.addEventListener('change', () => onChange(cb.checked));
+        return h('label', { style: 'display:inline-flex;align-items:center;gap:4px;min-width:64px' + (disabled ? ';opacity:.45' : ''), title: title || '' }, cb, text);
+      };
+      const parts = [];
+      if (ui.campus) parts.push(h('div', { style: 'margin-bottom:12px' }, h('div', { class: 'small muted', style: 'margin-bottom:4px' }, 'Toàn bộ khu (mọi lớp của khu)'),
+        h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px 16px' }, app.boot.campuses.map(cs => chk(camps.has(cs.campus_id), false, v => v ? camps.add(cs.campus_id) : camps.delete(cs.campus_id), cs.name)))));
+      Object.keys(groups).sort(nat).forEach(k => parts.push(h('div', { style: 'margin-bottom:10px' },
         h('div', { class: 'small muted', style: 'margin-bottom:4px' }, 'Khối ' + k),
-        h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px 16px' }, groups[k].map(c => {
-          const own = c.class_id === r.own_class_id;
-          const cb = h('input', { type: 'checkbox', checked: sel.has(c.class_id), disabled: own });
-          cb.addEventListener('change', () => { cb.checked ? sel.add(c.class_id) : sel.delete(c.class_id); });
-          return h('label', { style: 'display:inline-flex;align-items:center;gap:4px;min-width:64px' + (own ? ';opacity:.45' : ''), title: own ? 'Lớp của chính Sao đỏ này' : '' }, cb, c.name);
-        }))));
-      modal({ title: `Lớp theo dõi – ${cur(r).name}${r.own_class_name ? ' (Sao đỏ ' + r.own_class_name + ')' : ''}`, body: h('div', {}, ...boxes),
-        actions: [{ label: 'Hủy' }, { label: 'Chọn xong', kind: 'primary', onClick: () => { mark(r, { class_ids: [...sel] }); draw(); } }] });
+        h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px 16px' }, groups[k].map(x => chk(sel.has(x.class_id), x.class_id === ownId, v => v ? sel.add(x.class_id) : sel.delete(x.class_id), x.name, x.class_id === ownId ? 'Lớp của chính Sao đỏ này' : ''))))));
+      modal({ title: `${ui.col} – ${c.name}${cname(c.own_class_id) && c.own_class_id ? ' (' + cname(c.own_class_id) + ')' : ''}`, body: h('div', {}, ...parts),
+        actions: [{ label: 'Hủy' }, { label: 'Chọn xong', kind: 'primary', onClick: () => { mark(r, { class_ids: [...sel], campus_ids: [...camps] }); draw(); } }] });
     }
     async function save() {
-      for (const [, v] of dirty) if (v.name.length < 2) return toast('Họ và tên Sao đỏ không được để trống.', 'err');
+      for (const [, v] of dirty) if (v.name.length < 2) return toast('Họ và tên không được để trống.', 'err');
       saveBtn.disabled = true;
       try {
-        rows = await app.call('admin.saveRedStars', { items: [...dirty].map(([user_id, v]) => ({ user_id, name: v.name, class_ids: v.class_ids })) });
-        dirty.clear(); refreshBtn(); draw(); toast('Đã lưu phân công Sao đỏ', 'ok');
+        rows = await app.call('admin.saveMembers', { role, items: [...dirty].map(([user_id, v]) => ({ user_id, name: v.name, own_class_id: v.own_class_id, class_ids: v.class_ids, campus_ids: v.campus_ids })) });
+        dirty.clear(); refreshBtn(); draw(); toast(`Đã lưu ${ROLE_UI[role].who}`, 'ok');
+        if (role === 'HOMEROOM_TEACHER') app.reloadBoot().catch(() => {});
       } catch (e) { toast(e.message, 'err'); refreshBtn(); }
     }
     async function auto() {
