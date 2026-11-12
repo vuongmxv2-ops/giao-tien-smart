@@ -130,16 +130,34 @@ export async function render(el, app) {
     if (!typeItems.some(t => t.value === i.type_id)) typeItems.unshift({ value: i.type_id, label: i.type_name, sub: 'Loại đã ngừng dùng' });
     const ft = searchSelect({ placeholder: 'Gõ để tìm lỗi, ví dụ: dien thoai, muon, so vin', items: typeItems });
     ft.value = i.type_id;
+    // Học sinh vi phạm: chọn trong danh sách lớp; để trống = lỗi tập thể (sửa khi Sao đỏ ghi nhầm cá nhân ↔ tập thể)
+    const oldStudent = i.student_id || '';
+    const fs = searchSelect({ placeholder: 'Gõ tên học sinh (không dấu cũng được)', emptyLabel: '— Lỗi tập thể / không xác định học sinh —' });
+    const fsHint = h('div', { class: 'small muted' }, 'Đang tải danh sách học sinh…');
+    async function loadStudents(classId, keep) {
+      fs.setItems([]); fsHint.textContent = 'Đang tải danh sách học sinh…';
+      try {
+        const list = await app.call('student.search', { class_id: classId });
+        const count = {}, seen = {};
+        list.forEach(s => { count[s.full_name] = (count[s.full_name] || 0) + 1; });
+        fs.setItems(list.map(s => ({ value: s.student_id, label: count[s.full_name] > 1 ? `${s.full_name} (${seen[s.full_name] = (seen[s.full_name] || 0) + 1})` : s.full_name, sub: s.student_code || '' })));
+        if (keep) fs.value = keep;
+        fsHint.textContent = keep && !fs.value ? `Học sinh cũ (${i.student_name || keep}) không còn trong danh sách lớp này – chọn lại.` : `${list.length} học sinh lớp ${app.classById(classId)?.name || ''}. Để trống nếu là lỗi tập thể.`;
+      } catch (e) { fsHint.textContent = 'Không tải được danh sách học sinh: ' + e.message; }
+    }
+    loadStudents(i.class_id_at_time, oldStudent);
+    fc.addEventListener('change', () => loadStudents(fc.value, ''));
     const ftime = dateTime24(String(i.occurred_at).substr(0, 16) || nowLocalInput());
     const fp = h('input', { type: 'number', step: '0.5', value: i.approved_points !== '' ? i.approved_points : '' , placeholder: 'Để trống = theo nội quy' });
     const fn = h('textarea', {}, i.note || '');
     const fr = h('textarea', { placeholder: 'Bắt buộc' });
     modal({ title: 'Sửa bản ghi ' + i.incident_id, body: h('div', {},
       i.status === 'DA_DUYET' ? h('div', { class: 'notice yellow' }, 'Bản ghi đã duyệt: giao dịch điểm cũ sẽ bị hủy và tạo giao dịch mới, có lưu lịch sử.') : '',
-      field('Lớp', fc), field('Loại vi phạm', ft), field('Ngày giờ', ftime), field('Điểm duyệt', fp), field('Ghi chú', fn), field('Lý do sửa', fr)),
+      field('Lớp', fc), h('label', { class: 'f' }, h('span', {}, 'Học sinh vi phạm'), fs, fsHint), field('Loại vi phạm', ft), field('Ngày giờ', ftime), field('Điểm duyệt', fp), field('Ghi chú', fn), field('Lý do sửa', fr)),
       actions: [{ label: 'Hủy' }, { label: 'Lưu thay đổi', kind: 'primary', onClick: async () => {
         const changes = {};
         if (fc.value !== i.class_id_at_time) changes.class_id = fc.value;
+        if ((fs.value || '') !== oldStudent || changes.class_id) changes.student_id = fs.value || '';
         if (ft.value !== i.type_id) changes.type_id = ft.value;
         if (ftime.value && ftime.value !== String(i.occurred_at).substr(0, 16)) changes.occurred_at = ftime.value + ':00+07:00';
         if (fp.value !== '' && Number(fp.value) !== Number(i.approved_points)) changes.approved_points = Number(fp.value);
