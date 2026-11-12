@@ -1,6 +1,7 @@
 import { h, options, field, toast, loading, errorBox, table, download, blobToB64, b64ToBlob, fmtDateTime, devNote, fmtDate, lib } from '../ui.js';
 import { buildWeekWorkbook, whoLabel, namesEnabled, captionLines } from '../xlsx/report.js';
 import { annotateImage } from '../xlsx/collage.js';
+import { buildClassWorkbook } from '../xlsx/classreport.js';
 import { decode } from '../image.js';
 
 /** TAB 11 – XUẤT BÁO CÁO – EXCEL KÈM MINH CHỨNG */
@@ -19,6 +20,26 @@ export async function render(el, app, params) {
     h('div', { class: 'grid c2' }, btnBasic, btnImg),
     h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Nút 1: điểm cộng/trừ theo ngày, tổng, xếp loại, xếp thứ, ghi chú văn bản. Nút 2: ảnh minh chứng đã duyệt được ghép (tối đa 4 ảnh/nhóm) và đặt trong Note của đúng ô – mở bằng Microsoft Excel trên máy tính để xem ảnh.'),
     prog, logBox, result));
+
+  // Thống kê tuyên dương – vi phạm theo lớp gửi GVCN
+  const wk = b.weeks.find(w => w.week_id === fWeek.value) || b.current_week || {};
+  const fFrom = h('input', { type: 'date', value: wk.start_date || '' });
+  const fTo = h('input', { type: 'date', value: wk.end_date || '' });
+  const fClass = h('select');
+  const fillClassSel = () => fClass.replaceChildren(...options(b.classes.filter(c => !fCampus.value || c.campus_id === fCampus.value)
+    .filter(c => !fGroup.value || (c.comp_group || '') === fGroup.value), { value: 'class_id', label: 'name', empty: 'Tất cả lớp (mỗi lớp một tệp, gói .zip)' }));
+  fillClassSel(); fCampus.addEventListener('change', fillClassSel); fGroup.addEventListener('change', fillClassSel);
+  const useWeek = () => { const w = b.weeks.find(x => x.week_id === fWeek.value); if (w) { fFrom.value = w.start_date; fTo.value = w.end_date; } };
+  const useMonth = () => { const t = b.today || new Date().toISOString().slice(0, 10), m = t.slice(0, 7); fFrom.value = m + '-01'; fTo.value = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)).toISOString().slice(0, 10); };
+  fWeek.addEventListener('change', useWeek);
+  const gvcnResult = h('div');
+  const btnGvcn = h('button', { class: 'btn btn-hero', style: 'min-height:60px;font-size:16px;background:linear-gradient(135deg,#4338ca,#6366f1)', onclick: runGvcn }, '👩‍🏫 XUẤT THỐNG KÊ THEO LỚP GỬI GVCN');
+  el.append(h('div', { class: 'card' }, h('h2', {}, 'Thống kê tuyên dương – vi phạm theo lớp (gửi GVCN)'),
+    h('div', { class: 'grid c3' }, field('Từ ngày', fFrom), field('Đến ngày', fTo), field('Lớp', fClass)),
+    h('div', { class: 'actions', style: 'margin:-2px 0 10px' }, h('button', { class: 'btn sm', type: 'button', onclick: useWeek }, 'Theo tuần đang chọn'), h('button', { class: 'btn sm', type: 'button', onclick: useMonth }, 'Tháng này')),
+    btnGvcn,
+    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Các bản ghi ĐÃ DUYỆT trong khoảng ngày. Cột: STT, Lớp, Họ và tên, Tuyên dương, Điểm cộng, Ngày tuyên dương, Vi phạm, Điểm trừ, Ngày vi phạm, Ghi chú; có dòng tổng và chỗ ký. Lỗi tập thể ghi "(Tập thể lớp)". Chọn một lớp → một tệp Excel; chọn tất cả → gói .zip mỗi lớp một tệp, kèm tệp tổng hợp nhiều trang.'),
+    gvcnResult));
 
   // Gói ảnh minh chứng gửi về các lớp
   const photoLog = h('div', { class: 'small', style: 'max-height:160px;overflow:auto' });
@@ -177,6 +198,38 @@ export async function render(el, app, params) {
       plog('✖ ' + e.message);
       photoResult.replaceChildren(h('div', { class: 'notice red' }, 'Không tạo được gói ảnh: ' + e.message));
     } finally { busy = false; btnPhotos.disabled = btnBasic.disabled = btnImg.disabled = false; }
+  }
+
+  async function runGvcn() {
+    if (busy) return;
+    if (!fFrom.value || !fTo.value || fFrom.value > fTo.value) return toast('Chọn khoảng ngày hợp lệ.', 'err');
+    try { await lib('JSZip'); } catch (e) { return toast(e.message, 'err'); }
+    busy = true; btnGvcn.disabled = true;
+    gvcnResult.replaceChildren(h('div', { class: 'notice' }, h('span', { class: 'spinner sm' }), ' Đang lấy dữ liệu đã duyệt…'));
+    try {
+      const data = await app.call('export.classReport', { from: fFrom.value, to: fTo.value, campus_id: fCampus.value, comp_group: fGroup.value, class_id: fClass.value }, { timeout: 120000 });
+      const range = `${fFrom.value.slice(8, 10)}-${fFrom.value.slice(5, 7)}_den_${fTo.value.slice(8, 10)}-${fTo.value.slice(5, 7)}`;
+      const count = c => data.items.filter(i => i.class_id === c.class_id).length;
+      if (!data.classes.length) throw new Error('Không có lớp nào theo bộ lọc.');
+      let blob, filename;
+      if (data.classes.length === 1) {
+        blob = await buildClassWorkbook(data.classes, data);
+        filename = `THONG_KE_LOP_${slug(data.classes[0].name)}_${range}.xlsx`;
+      } else {
+        const zip = new JSZip();
+        for (const c of data.classes) zip.file(`THONG_KE_LOP_${slug(c.name)}_${range}.xlsx`, await buildClassWorkbook([c], data));
+        zip.file(`00_TONG_HOP_TAT_CA_LOP_${range}.xlsx`, await buildClassWorkbook(data.classes, data));
+        blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+        filename = `THONG_KE_GUI_GVCN_${range}.zip`;
+      }
+      download(blob, filename);
+      const plus = data.items.filter(i => i.kind === 'CONG' || i.points > 0).length;
+      gvcnResult.replaceChildren(h('div', { class: 'notice green' }, `✔ Đã tạo ${filename}: ${data.classes.length} lớp, ${plus} lượt tuyên dương, ${data.items.length - plus} lượt vi phạm. `,
+        h('button', { class: 'btn sm', onclick: () => download(blob, filename) }, 'Tải lại tệp')),
+        data.classes.length > 1 ? h('div', { class: 'small muted' }, data.classes.map(c => `${c.name}: ${count(c)}`).join(' · ')) : '');
+    } catch (e) {
+      gvcnResult.replaceChildren(h('div', { class: 'notice red' }, 'Không tạo được thống kê: ' + e.message));
+    } finally { busy = false; btnGvcn.disabled = false; }
   }
 
   function slug(s) {
