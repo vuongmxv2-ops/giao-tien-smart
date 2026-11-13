@@ -265,6 +265,11 @@
       <select id="selPH"></select>
     </div>
     <div class="panel">
+      <h3>🔁 Hình ảnh ở các vòng chơi</h3>
+      <div class="seg" id="segLap" style="margin-bottom:8px"><button data-v="0">Không lặp lại</button><button data-v="1">Có lặp lại</button></div>
+      <div class="muted" id="lapNote"></div>
+    </div>
+    <div class="panel">
       <h3>📷 Nhập ảnh thầy cô (dành cho người quản lý)</h3>
       <div class="muted">Đặt tên tệp ảnh theo mẫu <b>Họ tên - Môn dạy.jpg</b>, ví dụ <i>Nguyễn Thị Hoa - Ngữ văn.jpg</i>. Có thể chọn cùng lúc nhiều ảnh.</div>
       <label class="f">Các ảnh này thuộc phân hiệu</label>
@@ -444,13 +449,33 @@ function weightedPick(cand) {
   for (let i = 0; i < cand.length; i++) { r -= w[i]; if (r <= 0) return cand[i]; }
   return cand[cand.length - 1];
 }
+/* Chọn n thầy cô (không trùng tên) cho một vòng/ván.
+   Không lặp lại (mặc định): mỗi người chỉ xuất hiện 1 lần cho đến khi đã gặp hết, rồi mới sang lượt mới (ghi nhớ trên máy).
+   Có lặp lại: chọn ngẫu nhiên mỗi lần, có thể gặp lại người vừa xuất hiện. */
+function pickRound(kind, list, n, weighted) {
+  const lap = !!settings.lap, key = 'nd_seen_' + kind + '_' + slug(settings.ph);
+  let seen = new Set(lap ? [] : LS.get(key, []));
+  const out = [], names = new Set();
+  const take = cand => {
+    while (out.length < n) {
+      const c = cand.filter(p => !out.includes(p) && !names.has(p.ten)); if (!c.length) return;
+      const p = weighted ? weightedPick(c) : c[Math.random() * c.length | 0];
+      out.push(p); names.add(p.ten);
+    }
+  };
+  take(list.filter(p => !seen.has(p.id)));
+  if (out.length < n) { if (!lap) seen = new Set(); take(list); }   // đã gặp hết: bắt đầu lượt mới
+  if (!lap) { out.forEach(p => seen.add(p.id)); LS.set(key, [...seen]); }
+  return out;
+}
 function buildGame() {
-  const L = pool(), used = new Set(), qs = [];
+  const L = pool(), qs = [];
   const types = shuffle([...Array(GAME_N)].map((_, k) => k % 2 ? 'ten' : 'anh'));   // nửa nhìn ảnh, nửa tìm ảnh
+  const ps = pickRound('quiz', L, GAME_N, true);
+  for (let k = 0; ps.length < GAME_N && k < GAME_N; k++) ps.push(ps[k]);           // phân hiệu ít người: cho lặp
   for (let k = 0; k < GAME_N; k++) {
-    let cand = L.filter(p => !used.has(p.id)); if (!cand.length) { used.clear(); cand = L; }
-    const p = weightedPick(cand); used.add(p.id);
-    qs.push({ p, type: types[k], opts: shuffle([p, ...shuffle(L.filter(x => x.id !== p.id)).slice(0, 3)]) });
+    const p = ps[k];
+    qs.push({ p, type: types[k], opts: shuffle([p, ...shuffle(L.filter(x => x.id !== p.id && x.ten !== p.ten)).slice(0, 3)]) });
   }
   return { qs, i: 0, score: 0, streak: 0, best: 0, correct: 0, res: [], phase: 'start', tLeft: GAME_T, answered: false };
 }
@@ -640,10 +665,7 @@ let match = null, matchIv = null;
 const matchKey = () => 'nd_match_' + slug(settings.ph);
 const fmtTime = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 function startMatch() {
-  const L = pool(), used = new Set(), sel = [];
-  while (sel.length < Math.min(MATCH_PAIRS, L.length)) {
-    const p = weightedPick(L.filter(x => !used.has(x.id))); used.add(p.id); sel.push(p);
-  }
+  const L = pool(), sel = pickRound('match', L, Math.min(MATCH_PAIRS, L.length), true);
   const cards = shuffle(sel.flatMap(p => [{ p, type: 'anh' }, { p, type: 'ten' }])).map((c, i) => ({ ...c, i, st: 'down' }));
   game = null;
   match = { cards, open: [], moves: 0, found: 0, n: sel.length, t0: Date.now(), sec: 0, lock: false, done: false };
@@ -876,14 +898,7 @@ function onHostMsg(m) {
 }
 function newRound() {
   const me = live, L = pool();
-  let cand = L.filter(p => !me.used.has(p.id));
-  if (cand.length < LIVE_N) { me.used.clear(); cand = L; }
-  const people = [], names = new Set();
-  for (const p of shuffle([...cand])) {
-    if (people.length >= LIVE_N) break;
-    if (names.has(p.ten)) continue;
-    people.push(p); names.add(p.ten); me.used.add(p.id);
-  }
+  const people = pickRound('live', L, LIVE_N, false), names = new Set(people.map(p => p.ten));
   me.r++;
   const decoys = [...new Set(shuffle(L.filter(p => !names.has(p.ten))).map(p => p.ten))].slice(0, LIVE_DECOY);   // tên gây nhiễu
   me.round = { people, names: shuffle([...people.map(p => p.ten), ...decoys]), subs: {} };
@@ -1099,7 +1114,13 @@ function renderCD() {
   const L = pool(), thuoc = L.filter(p => box(p.id) >= THUOC).length, dang = L.filter(p => progress[p.id] && box(p.id) < THUOC).length;
   $('#stat').innerHTML = `<div><b>${thuoc}</b><span>Đã nhớ</span></div><div><b>${dang}</b><span>Đang học</span></div><div><b>${L.length - thuoc - dang}</b><span>Chưa gặp</span></div>`;
   $('#dsPH').innerHTML = [...new Set(['Hoành Sơn', 'Giao Tiến', ...branches()])].map(b => `<option value="${esc(b)}">`).join('');
+  document.querySelectorAll('#segLap button').forEach(b => b.classList.toggle('on', b.dataset.v === (settings.lap ? '1' : '0')));
+  const seenN = new Set(LS.get('nd_seen_live_' + slug(settings.ph), [])).size;
+  $('#lapNote').innerHTML = settings.lap
+    ? 'Mỗi vòng chọn ngẫu nhiên, ưu tiên người bạn chưa nhớ. Có thể gặp lại thầy cô vừa xuất hiện ở vòng trước.'
+    : `Mỗi thầy cô chỉ xuất hiện <b>1 lần</b> cho đến khi đã gặp hết ${L.length} người, rồi mới bắt đầu lượt mới.<br>Thi đấu 5 ô: đã chiếu ${Math.min(seenN, L.length)}/${L.length} người.`;
 }
+document.querySelectorAll('#segLap button').forEach(b => b.onclick = () => { settings.lap = b.dataset.v === '1'; LS.set('nd_settings', settings); renderCD(); toast(settings.lap ? 'Đã bật: có lặp lại' : 'Đã bật: không lặp lại'); });
 $('#selPH').onchange = e => { settings.ph = e.target.value; LS.set('nd_settings', settings); curHoc = null; game = null; match = null; lastIds = []; updateHeader(); renderCD(); };
 
 function resizeImage(file, max = 480) {
@@ -1143,7 +1164,7 @@ $('#btnExport').onclick = () => {
   a.download = 'danhsach.js'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Đã xuất ${data.length} thầy cô`);
 };
-$('#btnReset').onclick = () => { if (confirm('Xoá toàn bộ tiến độ học trên máy này?')) { progress = {}; LS.set('nd_progress', progress); game = null; match = null; updateHeader(); renderCD(); toast('Đã đặt lại tiến độ'); } };
+$('#btnReset').onclick = () => { if (confirm('Xoá toàn bộ tiến độ học trên máy này?')) { progress = {}; LS.set('nd_progress', progress); Object.keys(localStorage).filter(k => k.startsWith('nd_seen_')).forEach(k => localStorage.removeItem(k)); game = null; match = null; updateHeader(); renderCD(); toast('Đã đặt lại tiến độ'); } };
 $('#btnClear').onclick = async () => { if (confirm('Xoá các ảnh đã nhập trên máy này? (Không ảnh hưởng tệp danhsach.js)')) { await DB.clear(); await loadPeople(); curHoc = null; game = null; match = null; updateHeader(); renderCD(); toast('Đã xoá ảnh đã nhập'); } };
 
 /* ---------- Khởi động ---------- */
