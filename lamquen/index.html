@@ -730,6 +730,7 @@ function drawMatchEnd(anim) {
    Màn hình chính (host) và điện thoại (người chơi) nói chuyện qua máy chủ MQTT công cộng.
    Chỉ gửi tên người chơi, tên thầy cô và đáp án; ảnh không gửi đi. */
 const LIVE_N = 5, LIVE_DECOY = 5, LIVE_T = 60, TOPIC = 'lamquen-thayco/v1/';
+const WEB_URL = 'https://vuongmxv2-ops.github.io/giao-tien-smart/lamquen/';   // địa chỉ trang trên mạng
 const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
 const LIB_MQTT = ['https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5/dist/mqtt.min.js'];
 const LIB_QR = ['https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', 'https://unpkg.com/qrcode-generator@1.4.4/qrcode.js'];
@@ -808,7 +809,9 @@ async function openHost() {
     $('#hClose').onclick = closeLive; return;
   }
   me.c = c; c.onRe = () => pubState(true);
-  me.link = (window.DIA_CHI_WEB || location.href.split(/[?#]/)[0]) + '?phong=' + me.code + '&b=' + me.bi;
+  // Mở từ thư mục trên máy: điện thoại không vào được ổ cứng, nên mã QR trỏ tới trang trên mạng
+  const isLocal = location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname);
+  me.link = (window.DIA_CHI_WEB || (isLocal ? WEB_URL : location.href.split(/[?#]/)[0])) + '?phong=' + me.code + '&b=' + me.bi;
   try { if (!window.qrcode) await loadScript(LIB_QR); } catch {}
   if (live !== me) return;
   pubState(true); drawHost();
@@ -935,11 +938,9 @@ function drawHost() {
     <span id="hCount" style="font-size:20px">👥 ${n}</span><button class="lvbtn gray" id="hClose">✕ Đóng</button></div>`;
   let body = '';
   if (me.ph === 'lobby') {
-    const local = location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname);
     body = `<div class="lobby">${qrHtml('')}<div>
       <div class="big">📱 Quét mã QR để tham gia!</div>
       <div class="link">${esc(me.link)}</div>
-      ${local && !window.DIA_CHI_WEB ? '<div class="warn">⚠️ Phần mềm đang chạy trên máy tính này nên điện thoại chưa mở được đường link. Cần đưa phần mềm lên mạng (GitHub Pages) để điện thoại tham gia.</div>' : ''}
       <div class="chips" id="hPlayers"></div>
       <div style="margin-top:20px"><button class="lvbtn" id="hStart">▶ Bắt đầu vòng 1</button></div>
       <div style="opacity:.8;margin-top:10px;font-size:15px">Mỗi vòng có ${LIVE_N} ảnh, ${LIVE_T} giây; điện thoại hiện ${LIVE_N + LIVE_DECOY} tên, trong đó ${LIVE_DECOY} tên gây nhiễu. Mỗi ô đúng được 100 điểm; 3 người đúng cả 5 ô nhanh nhất được thưởng thêm 50/30/20 điểm.</div>
