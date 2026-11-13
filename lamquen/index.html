@@ -180,6 +180,8 @@
   .chip{background:rgba(255,255,255,.18);border-radius:99px;padding:5px 13px;font-size:16px}
   .chip.ok{background:#16a34a}
   .lvsub{font-size:22px;font-weight:700;margin:16px 0 8px;text-align:center}
+  .rvhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0 4px}
+  .rvhead .lvsub{flex:1;margin:0}
   .lvtimer{height:14px;background:rgba(255,255,255,.2);border-radius:9px;overflow:hidden}
   .lvtimer i{display:block;height:100%;width:100%;background:#fbbf24;transition:width 1s linear}
   .boxes{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:18px 0}
@@ -947,8 +949,8 @@ function drawHost() {
     </div></div>`;
   } else if (me.ph === 'play' || me.ph === 'reveal') {
     const rv = me.ph === 'reveal', ns = Object.keys(R.subs).length;
-    body = `<div class="lvsub">${rv ? `🔓 Đáp án vòng ${me.r}` : `Vòng ${me.r}: nhìn ảnh, chọn tên đúng cho từng ô trên điện thoại!`}</div>
-      ${rv ? `<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 4px"><button class="lvbtn" id="hNext">▶ Vòng ${me.r + 1}</button><button class="lvbtn gray" id="hEnd">🏁 Kết thúc & trao giải</button></div>` : ''}
+    body = (rv ? `<div class="rvhead"><button class="lvbtn" id="hNext">▶ Vòng ${me.r + 1}</button><div class="lvsub">🔓 Đáp án vòng ${me.r}</div><button class="lvbtn gray" id="hEnd">🏁 Kết thúc & trao giải</button></div>`
+      : `<div class="lvsub">Vòng ${me.r}: nhìn ảnh, chọn tên đúng cho từng ô trên điện thoại!</div>`) + `
       ${rv ? '' : `<div class="lvtimer"><i id="hBar"></i></div>`}
       <div class="boxes">${R.people.map((p, k) => `<div class="bx" style="animation-delay:${rv ? 0 : k * .12}s"><span class="no">${k + 1}</span>${img(p)}
         <div class="nm ${rv ? '' : 'hid'}">${rv ? esc(p.ten) + `<span class="pct">✅ ${R.slotOk[k]}/${ns} người đúng</span>` : '?'}</div></div>`).join('')}</div>`;
@@ -972,7 +974,7 @@ function drawHost() {
   $('#hClose').onclick = closeLive;
   const on = (id, f) => { const el = $(id); if (el) el.onclick = f; };
   on('#hStart', newRound); on('#hNext', newRound); on('#hReveal', reveal);
-  on('#hEnd', () => { me.ph = 'end'; pubState(true); drawHost(); beep('win'); confetti(); });
+  on('#hEnd', () => { if (!confirm('Kết thúc trò chơi và trao giải?')) return; me.ph = 'end'; pubState(true); drawHost(); beep('win'); confetti(); });
   on('#hAgain', () => { Object.values(me.players).forEach(p => { p.total = 0; p.last = null; }); me.r = 0; me.round = null; me.used.clear(); me.ph = 'lobby'; pubState(true); drawHost(); });
   hostRefresh();
 }
