@@ -1,6 +1,8 @@
 import { h, options, field, toast, loading, errorBox, table, badge, fmtDate, wdLabel, addDays, todayKey, askReason, modal, readSheetFile, mapColumns, fold, lib, download } from '../ui.js';
 
-const TASKS = [{ value: 'TRUC_CONG', label: 'Trực cổng' }, { value: 'TRUY_BAI', label: 'Kiểm tra truy bài' }, { value: 'NE_NEP', label: 'Kiểm tra nề nếp' }];
+const TASKS = [{ value: 'TRUC_CONG', label: 'Trực cổng' }, { value: 'TRUY_BAI', label: 'Kiểm tra truy bài' }, { value: 'NE_NEP', label: 'Kiểm tra nề nếp' },
+  // Trực màn hình: theo dõi camera các lớp giờ truy bài trên 1 màn hình, nhắc nhở qua loa
+  { value: 'TRUC_MAN_HINH', label: 'Trực màn hình' }];
 const taskName = v => (TASKS.find(t => t.value === v) || {}).label || v;
 
 /** TAB 4 – LỊCH TRỰC BAN */
@@ -127,6 +129,7 @@ export async function render(el, app) {
     if (!f) return '';
     const t = TASKS.find(x => fold(x.label) === f || fold(x.value) === f);
     if (t) return t.value;
+    if (f.includes('man hinh') || f.includes('camera')) return 'TRUC_MAN_HINH';
     if (f.includes('cong')) return 'TRUC_CONG';
     if (f.includes('truy bai')) return 'TRUY_BAI';
     if (f.includes('ne nep')) return 'NE_NEP';
@@ -140,6 +143,14 @@ export async function render(el, app) {
     const hits = staff.filter(s => fold(s.full_name) === f);
     if (hits.length === 1) return { user: hits[0] };
     if (hits.length > 1) return { err: 'Có ' + hits.length + ' người trùng tên – hãy ghi email' };
+    // Ghi tên lớp (vd "9A1" hoặc "Lớp 9A1") → Sao đỏ của lớp đó (tài khoản "Họ tên (9A1)")
+    const cls = raw.replace(/^l[oớ]p\s*/i, '').toUpperCase();
+    if (/^\d{1,2}[A-Z]\d{1,2}$/.test(cls)) {
+      const byCls = staff.filter(s => s.role === 'RED_STAR' && String(s.full_name || '').toUpperCase().endsWith('(' + cls + ')'));
+      if (byCls.length === 1) return { user: byCls[0] };
+      if (byCls.length > 1) return { err: 'Lớp ' + cls + ' có ' + byCls.length + ' Sao đỏ – hãy ghi họ tên' };
+      return { err: 'Không tìm thấy Sao đỏ lớp ' + cls };
+    }
     return { err: 'Không tìm thấy tài khoản "' + raw + '" (cần được cấp tài khoản Sao đỏ/BCH)' };
   }
 
@@ -212,7 +223,7 @@ export async function render(el, app) {
       const ref = X.utils.aoa_to_sheet([['Người trực (Họ tên)', 'Email', 'Vai trò'], ...people.map(s => [s.full_name, s.email || '', roleLabel(s)]), [],
         ['Buổi hợp lệ', sessions.map(s => s.name).join(', ')], ['Nhiệm vụ hợp lệ', TASKS.map(t => t.label).join(', ')],
         ['Cơ sở hợp lệ', b.campuses.map(c => c.name + ' (' + c.code + ')').join(', ')],
-        ['Ngày', 'Ghi dạng dd/mm/yyyy, ví dụ 10/11/2026'], ['Trùng tên', 'Nếu hai người trùng họ tên, ghi email vào cột "Người trực"']]);
+        ['Ngày', 'Ghi dạng dd/mm/yyyy, ví dụ 10/11/2026'], ['Trùng tên', 'Nếu hai người trùng họ tên, ghi email vào cột "Người trực"'], ['Ghi tên lớp', 'Cột "Người trực" có thể ghi tên lớp (vd 9A1) → tự chọn Sao đỏ của lớp đó']]);
       ref['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 16 }];
       const wb = X.utils.book_new();
       X.utils.book_append_sheet(wb, ws, 'Lich_truc'); X.utils.book_append_sheet(wb, ref, 'Huong_dan');
