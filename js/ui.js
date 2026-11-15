@@ -218,7 +218,9 @@ export function uid() {
 /** raw: true → ô ngày trả về số ngày của Excel (không phụ thuộc định dạng hiển thị). */
 export async function readSheetFile(file, { raw = false } = {}) {
   await lib('XLSX');
-  const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+  // CSV/TXT: giữ nguyên chữ – nếu không thư viện hiểu "04/12/2026" theo kiểu Mỹ (tháng/ngày) thành 12/04/2026
+  const text = /\.(csv|txt)$/i.test(file.name || '');
+  const wb = window.XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false, raw: text });
   const ws = wb.Sheets[wb.SheetNames[0]];
   return window.XLSX.utils.sheet_to_json(ws, { defval: '', raw });
 }
