@@ -10,13 +10,14 @@ const sg = v => (v > 0 ? '+' : '') + v;
 const r2 = x => Math.round(x * 100) / 100;
 
 /**
- * Ghi chú người vi phạm: tên học sinh, hoặc "(Lỗi tập thể)" khi bản ghi không gắn học sinh.
- * Máy chủ chỉ gửi tên khi bật "Ghi tên học sinh trong ghi chú Excel"; nếu cả tuần không có tên nào thì coi như chưa bật
- * và để trống (không đoán "tập thể" cho mọi bản ghi).
+ * Ghi chú người vi phạm / được tuyên dương: tên học sinh, hoặc "(Lỗi tập thể)" / "(Tuyên dương tập thể)"
+ * khi bản ghi không gắn học sinh. Máy chủ chỉ gửi tên khi bật "Ghi tên học sinh trong ghi chú Excel";
+ * nếu cả tuần không có tên nào thì coi như chưa bật và để trống (không đoán "tập thể" cho mọi bản ghi).
  */
+export const isPraise = it => it.kind ? it.kind === 'CONG' : Number(it.points) > 0;
 export function whoLabel(it, namesOn) {
   if (it.student_name) return it.student_name;
-  return namesOn ? '(Lỗi tập thể)' : '';
+  return namesOn ? (isPraise(it) ? '(Tuyên dương tập thể)' : '(Lỗi tập thể)') : '';
 }
 export const namesEnabled = items => items.some(i => i.student_name);
 
