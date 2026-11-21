@@ -138,6 +138,9 @@ main { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 28px); max-
 .mode-seg button.on:nth-child(1) { background: var(--red); color: #fff; }
 .mode-seg button.on:nth-child(2) { background: var(--orange); color: #fff; }
 .mode-seg button.on:nth-child(3) { background: #4f46e5; color: #fff; }
+.mode-seg button.on:nth-child(4) { background: #c2410c; color: #fff; }
+@media (max-width: 560px) { .mode-seg { flex-wrap: wrap; } .mode-seg button { flex: 1 1 calc(50% - 4px); font-size: 14px; padding: 9px 6px; } }
+.grid .btn-hero.praise { font-size: 16px; }
 .kind-seg button.on[data-k="CONG"] { background: var(--orange); color: #fff; }
 .btn-hero.logbook { background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); box-shadow: 0 14px 30px -12px rgba(79,70,229,.6); font-size: 16px; }
 .lb-line { border: 1px solid var(--line); border-left: 4px solid #6366f1; border-radius: var(--radius-s); padding: 10px 12px 2px; margin-bottom: 10px; background: #fbfcff; }
