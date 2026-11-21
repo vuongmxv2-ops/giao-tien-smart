@@ -47,7 +47,7 @@ export async function render(el, app, params) {
   const photoResult = h('div');
   const btnPhotos = h('button', { class: 'btn btn-hero', style: 'min-height:60px;font-size:16px', onclick: runPhotos }, '🗂️ TẢI TOÀN BỘ ẢNH THEO LỚP (.zip)');
   el.append(h('div', { class: 'card' }, h('h2', {}, 'Ảnh minh chứng gửi về các lớp'), btnPhotos,
-    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Lấy ảnh của các bản ghi ĐÃ DUYỆT trong tuần (theo bộ lọc ở trên). Mỗi lớp một thư mục; mỗi ảnh có dải chữ 3 dòng: thứ, giờ, ngày / họ và tên (hoặc Lỗi tập thể), lớp / lỗi vi phạm, điểm. Tên tệp dạng 7A2_01-11_07h05_Di_hoc_muon_Nguyen_Van_A.jpg.'),
+    h('div', { class: 'small muted', style: 'margin-top:8px' }, 'Lấy ảnh của các bản ghi ĐÃ DUYỆT trong tuần (theo bộ lọc ở trên). Mỗi lớp một thư mục; mỗi ảnh có dải chữ 3 dòng: thứ, giờ, ngày / họ và tên (hoặc Lỗi tập thể / Tuyên dương tập thể), lớp / lỗi vi phạm hoặc nội dung tuyên dương, điểm. Tên tệp dạng 7A2_01-11_07h05_Di_hoc_muon_Nguyen_Van_A.jpg.'),
     photoProg, photoLog, photoResult));
 
   // Báo cáo khác
