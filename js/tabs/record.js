@@ -96,16 +96,19 @@ export async function render(el, app, params) {
   const tabTru = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('TRU') }, '⚠️ Vi phạm');
   const tabCong = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('CONG') }, '🌟 Tuyên dương');
   const tabSo = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('SO') }, '📒 Sổ trực');
-  const logBox = h('div', { hidden: true });
-  let logReady = false;
+  const tabTdn = h('button', { type: 'button', class: 'seg-btn', onclick: () => setMode('TDN') }, '🏆 TD nhiều lớp');
+  const logBox = h('div', { hidden: true }), praiseBox = h('div', { hidden: true });
+  let logReady = false, praiseReady = false;
   function setMode(m) {
-    // Chế độ "Sổ trực": thay biểu mẫu một lỗi bằng biểu mẫu nhiều dòng
-    tabSo.classList.toggle('on', m === 'SO');
-    if (formCard) formCard.hidden = m === 'SO';
-    logBox.hidden = m !== 'SO';
-    if (m === 'SO') {
+    // Chế độ "Sổ trực" / "Tuyên dương nhiều lớp": thay biểu mẫu một bản ghi bằng biểu mẫu nhiều dòng
+    const batch = m === 'SO' || m === 'TDN';
+    tabSo.classList.toggle('on', m === 'SO'); tabTdn.classList.toggle('on', m === 'TDN');
+    if (formCard) formCard.hidden = batch;
+    logBox.hidden = m !== 'SO'; praiseBox.hidden = m !== 'TDN';
+    if (batch) {
       tabTru.classList.remove('on'); tabCong.classList.remove('on');
-      if (!logReady) { logReady = true; import('./logbook.js').then(x => x.renderLogbook(logBox, app, { recordable, campuses })); }
+      if (m === 'SO' && !logReady) { logReady = true; import('./logbook.js').then(x => x.renderLogbook(logBox, app, { recordable, campuses })); }
+      if (m === 'TDN' && !praiseReady) { praiseReady = true; import('./logbook.js').then(x => x.renderLogbook(praiseBox, app, { recordable, campuses, praise: true })); }
       return;
     }
     mode = m;
@@ -128,7 +131,7 @@ export async function render(el, app, params) {
     } }, 'Điều chỉnh') : '', fTime);
   const submitBtn = h('button', { class: 'btn green block', type: 'button', style: 'min-height:52px;font-size:17px', onclick: submit }, '📤 GỬI GHI NHẬN');
 
-  el.append(h('div', { class: 'seg mode-seg' }, tabTru, tabCong, tabSo), logBox);
+  el.append(h('div', { class: 'seg mode-seg' }, tabTru, tabCong, tabSo, tabTdn), logBox, praiseBox);
   const formCard = h('div', { class: 'card' },
     hero, camInput, libInput,
     h('div', { class: 'actions', style: 'margin:10px 0' }, h('button', { class: 'btn', type: 'button', onclick: () => libInput.click() }, '🖼️ Chọn ảnh từ thư viện (nhiều ảnh)')),
@@ -139,7 +142,7 @@ export async function render(el, app, params) {
     h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'Người ghi nhận: ', h('b', {}, u.full_name), ' – ', u.role_label),
     submitBtn, status);
   el.append(formCard);
-  setMode(params.mode === 'so-truc' ? 'SO' : mode);
+  setMode(params.mode === 'so-truc' ? 'SO' : params.mode === 'tuyen-duong-nhieu-lop' ? 'TDN' : mode);
 
   // Hộp thư đi
   const outCard = h('div', { class: 'card' }, h('h2', {}, '📮 Trạng thái gửi trên máy này'));
