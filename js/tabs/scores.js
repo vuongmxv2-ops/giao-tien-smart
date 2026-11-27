@@ -34,10 +34,12 @@ export async function render(el, app, params) {
     body.replaceChildren();
     body.append(h('div', { class: 'card' },
       h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, h('b', {}, app.weekLabel(w)), badge(w.status), locked ? h('span', { class: 'small muted' }, `Bản chính thức phiên bản ${w.current_version}, khóa lúc ${fmtDateTime(w.locked_at)}`) : h('span', { class: 'small muted' }, 'Điểm tạm tính – thay đổi khi có bản ghi được duyệt')),
-      h('div', { class: 'small muted', style: 'margin-top:6px' }, `Điểm cuối tuần = Điểm đầu kỳ (${d.starting_points || 'chưa cấu hình'}) + Tổng cộng − Tổng trừ. Chỉ tính bản ghi đã duyệt. Xếp loại: ${d.thresholds}. Đồng hạng: ${tieLabel(d.tie_rule)}.`),
+      h('div', { class: 'small muted', style: 'margin-top:6px' }, `Điểm cuối tuần = Điểm đầu kỳ (${d.starting_points || 'chưa cấu hình'}) + Tổng cộng − Tổng trừ. Chỉ tính bản ghi đã duyệt. Xếp loại (tham khảo): ${d.thresholds}. ${d.rank_group === 'campus_id' ? 'Xếp thứ chung tất cả các lớp trong từng khu.' : 'Xếp thứ riêng trong từng nhóm thi đua.'} Đồng hạng: ${tieLabel(d.tie_rule)}.`),
       d.pending ? h('div', { class: 'notice yellow' }, `${d.pending} bản ghi của tuần đang chờ duyệt / bổ sung – chưa được tính.`, ' ', app.can('incident.review') ? h('button', { class: 'btn sm', onclick: () => app.nav('duyet') }, 'Đi duyệt') : '') : '',
       w.unlock_reason && !locked ? h('div', { class: 'notice yellow' }, 'Tuần đã được mở khóa. Lý do: ' + w.unlock_reason) : ''));
-    const cols = [{ label: 'STT', render: (r, i) => i + 1, num: true }, { label: 'Lớp', render: r => h('b', {}, r.class_name) }, ...(app.groups().length ? [{ label: 'Nhóm', key: 'comp_group' }] : []), { label: 'Điểm ban đầu', key: 'starting_points', num: true }];
+    const byCampus = d.rank_group === 'campus_id';
+    const groupCol = byCampus ? [{ label: 'Khu', render: r => app.campusName(r.campus_id) }] : app.groups().length ? [{ label: 'Nhóm', key: 'comp_group' }] : [];
+    const cols = [{ label: 'STT', render: (r, i) => i + 1, num: true }, { label: 'Lớp', render: r => h('b', {}, r.class_name) }, ...groupCol, { label: 'Điểm ban đầu', key: 'starting_points', num: true }];
     d.days.forEach(day => cols.push({ label: `${wdShort(day)} ${fmtDate(day).substr(0, 5)}`, num: true, render: r => {
       const x = r.daily[day]; if (!x) return '';
       return h('span', {}, x.bonus ? h('span', { class: 'pos' }, '+' + x.bonus) : '', x.bonus && x.deduct ? ' ' : '', x.deduct ? h('span', { class: 'neg' }, '−' + x.deduct) : '');
@@ -45,7 +47,7 @@ export async function render(el, app, params) {
     cols.push({ label: 'Cộng', render: r => h('span', { class: 'pos' }, r.bonus_points ? '+' + r.bonus_points : '0'), num: true },
       { label: 'Trừ', render: r => h('span', { class: 'neg' }, r.deducted_points ? '−' + r.deducted_points : '0'), num: true },
       { label: 'Tổng điểm', render: r => h('b', {}, r.final_points), num: true }, { label: 'Xếp loại', key: 'grade_label' },
-      { label: app.groups().length ? 'Xếp thứ (trong nhóm)' : 'Xếp thứ', render: r => h('b', {}, r.rank), num: true },
+      { label: byCampus ? 'Xếp thứ (trong khu)' : app.groups().length ? 'Xếp thứ (trong nhóm)' : 'Xếp thứ', render: r => h('b', {}, r.rank), num: true },
       { label: 'Minh chứng', render: r => h('button', { class: 'btn sm', onclick: e => { e.stopPropagation(); explain(r); } }, (r.violation_count || 0) + ' lỗi · Xem') });
     const rows = d.rows.slice().sort((a, c) => d.full ? 0 : a.rank - c.rank);
     body.append(table(cols, rows, { onRow: explain, empty: 'Không có lớp nào trong phạm vi.' }));
