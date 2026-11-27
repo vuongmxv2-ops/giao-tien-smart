@@ -11,7 +11,7 @@ import { call } from './api.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 /** Bản giao diện chế độ Firestore – đổi mỗi lần sửa fbmode/engine: danh sách thao tác đã tự tắt gắn với từng bản (lên bản mới = thử lại từ đầu). */
-const BUILD = '1.6.3';
+const BUILD = '1.6.4';
 const KEY = 'gts_fb', OFF_KEY = 'gts_fb_off_' + BUILD;
 export const SKIP = Symbol('skip');
 
@@ -143,6 +143,9 @@ export async function afterLogin(cred) {
     await attach();
   } catch (e) { console.warn('[fb] đăng nhập Firebase không thành công – dùng máy chủ cũ:', e.code || e.message); st.engine = null; }
 }
+
+/** Đã sẵn sàng chạy tại chỗ (đã đăng nhập Firebase, có hồ sơ quyền đang hoạt động, đã dựng bộ máy đọc). */
+export function isActive() { return !!(st.enabled && st.engine && st.member && st.member.status === 'ACTIVE'); }
 
 export async function logout() {
   if (!st.enabled || !st.auth) return;
