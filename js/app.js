@@ -1,4 +1,5 @@
-import { call, callSWR, clearSWR, setToken, hasToken, setAuthLostHandler, isMock } from './api.js';
+import { call, callSWR, clearSWR, setToken, hasToken, setAuthLostHandler, isMock, setLocalHooks, LOCAL_SKIP } from './api.js';
+import * as fb from './fbmode.js';
 import { $, h, toast, loading, errorBox, modal, confirmBox } from './ui.js';
 import * as outbox from './queue.js';
 
@@ -85,14 +86,23 @@ function maybeSuggestInstall() {
 async function logoutAll() {
   if (!await confirmBox('Đăng xuất khỏi mọi thiết bị?', 'Tất cả điện thoại, máy tính đang đăng nhập tài khoản này (kể cả máy này) sẽ phải đăng nhập lại. Dùng khi bị mất điện thoại hoặc nghi lộ tài khoản.', 'Đăng xuất tất cả', 'red')) return;
   try { await call('auth.logoutAll'); } catch (e) { if (e.code !== 'AUTH_REQUIRED') return toast(e.message, 'err'); }
-  setToken(''); clearBoot();
+  setToken(''); clearBoot(); fb.logout();
   if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   toast('Đã đăng xuất khỏi mọi thiết bị.', 'ok');
   showLogin();
 }
 
 async function start() {
-  setAuthLostHandler(() => { clearBoot(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warn'); showLogin(); });
+  setAuthLostHandler(() => { clearBoot(); fb.logout(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warn'); showLogin(); });
+  // Chế độ Firestore (thử nghiệm song song): bật riêng máy này bằng ?fb=1, tắt bằng ?fb=0
+  if (!isMock() && fb.isEnabled()) {
+    fb.init();
+    setLocalHooks(async (a, p) => { const r = await fb.tryLocal(a, p); return r === fb.SKIP ? LOCAL_SKIP : r; }, fb.noteRemote);
+    if (fb.justEnabled()) {
+      setToken(''); clearBoot(); history.replaceState(null, '', location.pathname + location.hash);
+      toast('Đã bật chế độ Firestore (thử nghiệm). Vui lòng đăng nhập lại một lần.', 'ok', 6000);
+    }
+  }
   if ('serviceWorker' in navigator && !isMock() && location.protocol === 'https:') {
     const had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -180,6 +190,7 @@ async function doLogin(idToken, msg) {
     loading(msg); msg.hidden = false; msg.className = 'notice';
     const r = await call('auth.login', { idToken });
     setToken(r.token);
+    await fb.afterLogin({ googleIdToken: idToken });
     await app.reloadBoot();
     renderShell();
     toast('Xin chào ' + app.user.full_name, 'ok');
@@ -192,6 +203,7 @@ async function doPasswordLogin(username, password, msg) {
     loading(msg); msg.hidden = false; msg.className = 'notice';
     const r = await call('auth.passwordLogin', { username: username.trim(), password });
     setToken(r.token);
+    await fb.afterLogin({ username: username.trim(), password });
     await app.reloadBoot();
     renderShell();
     if (!app.user.must_change_pw) toast('Xin chào ' + app.user.full_name, 'ok');
@@ -237,7 +249,7 @@ function openChangePassword() {
 
 export async function logout() {
   try { await call('auth.logout'); } catch { /* bỏ qua */ }
-  setToken(''); clearBoot();
+  setToken(''); clearBoot(); fb.logout();
   if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   showLogin();
 }
