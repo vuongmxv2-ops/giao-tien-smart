@@ -10,7 +10,9 @@ import { LOCAL as LOCAL_LIST, PARTIAL_OK, POST } from './engine/policy.js';
 import { call } from './api.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
-const KEY = 'gts_fb', OFF_KEY = 'gts_fb_off';
+/** Bản giao diện chế độ Firestore – đổi mỗi lần sửa fbmode/engine: danh sách thao tác đã tự tắt gắn với từng bản (lên bản mới = thử lại từ đầu). */
+const BUILD = '1.6.2';
+const KEY = 'gts_fb', OFF_KEY = 'gts_fb_off_' + BUILD;
 export const SKIP = Symbol('skip');
 
 /** Thao tác đọc chạy tại chỗ được (đã đối chiếu kết quả với máy chủ cũ trong tests/test-engine.html). */
@@ -188,7 +190,7 @@ function badge() {
     b = document.createElement('div'); b.id = 'fb-badge';
     b.style.cssText = 'position:fixed;left:8px;bottom:78px;z-index:9999;background:#0b5;color:#fff;font:12px/1.2 Arial;padding:4px 8px;border-radius:10px;opacity:.85;cursor:pointer';
     b.title = 'Chế độ Firestore (thử nghiệm). Bấm để xem chi tiết.';
-    b.onclick = () => alert('Chế độ Firestore (thử nghiệm)\n\nChạy tại chỗ: ' + st.stats.local + '\nĐối chiếu khớp: ' + st.stats.verified +
+    b.onclick = () => alert('Chế độ Firestore (thử nghiệm) – bản ' + BUILD + '\n\nChạy tại chỗ: ' + st.stats.local + '\nĐối chiếu khớp: ' + st.stats.verified +
       '\nPhải hỏi máy chủ cũ: ' + st.stats.remote + '\nLệch (đã tự tắt): ' + ([...st.off].join(', ') || 'không') + '\n\nTắt chế độ: mở lại ứng dụng với địa chỉ có ?fb=0');
     document.body.append(b);
   }
