@@ -43,11 +43,13 @@ export async function render(el, app) {
     const tie = h('select', {}, options([{ value: 'COMPETITION', label: tieLabel('COMPETITION') }, { value: 'DENSE', label: tieLabel('DENSE') }, { value: 'FEWER_VIOLATIONS', label: tieLabel('FEWER_VIOLATIONS') }], { selected: S.tie_rule, empty: '— Chưa chọn —' }));
     const top = h('input', { type: 'number', value: S.commend_top_n, min: 1 });
     const days = h('input', { type: 'text', value: S.school_days });
+    const byCampus = h('input', { type: 'number', value: S.rank_by_campus_from_week ?? '', min: 0 });
     body.append(
       !S.starting_points || !S.tie_rule ? h('div', { class: 'notice red' }, 'Bắt buộc cấu hình Điểm đầu kỳ và Quy tắc đồng hạng trước khi tính điểm. Hệ thống không tự đặt số điểm.') : '',
       field('Điểm đầu kỳ (mỗi tuần)', sp), field('Ngưỡng xếp loại (Nhãn:điểm tối thiểu; …; nhãn cuối không có điểm)', th, 'Mặc định lấy theo tệp mẫu tuần 7: A ≥ 100, B ≥ 95, C ≥ 80, còn lại D.'),
       field('Quy tắc xử lý đồng hạng', tie), field('Số lớp đề xuất tuyên dương', top), field('Ngày học trong tuần (5=T6, 1=T2…; theo thứ tự cột)', days),
-      h('button', { class: 'btn primary', onclick: () => saveSettings({ starting_points: sp.value, grade_thresholds: th.value, tie_rule: tie.value, commend_top_n: top.value, school_days: days.value }) }, 'Lưu'));
+      field('Xếp thứ chung tất cả các lớp trong từng khu từ tuần', byCampus, 'Từ tuần này trở đi không chia nhóm thi đua (lớp chọn/đại trà); các tuần trước giữ cách xếp cũ. Nhập 0 để luôn xếp theo nhóm. Xếp loại A, B, C, D vẫn tính để tham khảo.'),
+      h('button', { class: 'btn primary', onclick: () => saveSettings({ starting_points: sp.value, grade_thresholds: th.value, tie_rule: tie.value, commend_top_n: top.value, school_days: days.value, rank_by_campus_from_week: byCampus.value }) }, 'Lưu'));
   }
 
   function typesSection(body) {
