@@ -50,10 +50,21 @@ export function clearSWR() { try { localStorage.removeItem(SWR_KEY); } catch { /
  * Gọi máy chủ. Khi máy chủ báo BẬN (nhiều người gửi cùng lúc – lỗi xảy ra TRƯỚC khi ghi dữ liệu nên gửi lại an toàn)
  * thì tự đợi rồi gửi lại tối đa 3 lần, người dùng không phải bấm lại.
  */
+/** Móc chế độ Firestore (js/fbmode.js): local(action, payload) → kết quả | LOCAL_SKIP; after(action) sau mỗi lần gọi máy chủ cũ. */
+let local = null, after = null;
+export const LOCAL_SKIP = Symbol('skip');
+export function setLocalHooks(l, a) { local = l; after = a; }
+
 export async function call(action, payload = {}, opts = {}) {
+  if (local && !opts.remote) {
+    let r;
+    try { r = await local(action, payload); }
+    catch (e) { throw new ApiError(e.code || 'ERROR', e.message); }
+    if (r !== LOCAL_SKIP) return r;
+  }
   const waits = [1500, 3500, 7000];
   for (let i = 0; ; i++) {
-    try { return await call1(action, payload, opts); }
+    try { const d = await call1(action, payload, opts); if (after) after(action); return d; }
     catch (e) {
       if (e.code !== 'BUSY' || i >= waits.length) throw e;
       await new Promise(r => setTimeout(r, waits[i] + Math.random() * 1000));
