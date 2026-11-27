@@ -30,7 +30,7 @@ function saveOff() { try { localStorage.setItem(OFF_KEY, JSON.stringify([...st.o
 export function isEnabled() {
   try {
     const p = new URLSearchParams(location.search).get('fb');
-    if (p === '1') localStorage.setItem(KEY, '1');
+    if (p === '1') { localStorage.setItem(KEY, '1'); localStorage.removeItem(OFF_KEY); st.off.clear(); } // bật lại: thử lại mọi thao tác
     if (p === '0') localStorage.removeItem(KEY);
     return localStorage.getItem(KEY) === '1';
   } catch { return false; }
@@ -162,7 +162,8 @@ export async function tryLocal(action, payload) {
 }
 
 /** So ngầm kết quả tại chỗ với máy chủ cũ (không làm chậm người dùng). Lệch → tắt thao tác này trên máy, ghi lại để kiểm tra. */
-const VOLATILE = new Set(['server_time', 'ms', 'generated_at']);
+// version: số phiên bản mã máy chủ (không phải dữ liệu) – bộ máy tại chỗ có thể chạy bản mã cũ hơn một chút
+const VOLATILE = new Set(['server_time', 'ms', 'generated_at', 'version']);
 const norm = v => JSON.stringify(v, (k, x) => (VOLATILE.has(k) ? undefined : x));
 function verify(action, payload, local, retry) {
   const at = Date.now();
