@@ -115,8 +115,9 @@ async function start() {
     // Mở ngay bằng dữ liệu đã lưu; quyền thật vẫn do máy chủ kiểm tra ở mỗi thao tác
     app.boot = cached; app.user = cached.user;
     renderShell();
-    const before = JSON.stringify(cached.user);
+    const before = JSON.stringify(cached.user), tb = performance.now();
     app.reloadBoot().then(b => {
+      fb.noteTiming('Mở ứng dụng – cập nhật dữ liệu khởi động', performance.now() - tb);
       if (JSON.stringify(b.user) !== before) renderShell(); // đổi quyền/phạm vi → dựng lại menu
       else refreshTopbar();
     }).catch(e => { if (e.code !== 'AUTH_REQUIRED') toast('Đang dùng dữ liệu đã lưu trên máy – chưa cập nhật được từ máy chủ.', 'warn', 4000); });
@@ -188,10 +189,14 @@ function mockLogin(box, msg) {
 async function doLogin(idToken, msg) {
   try {
     loading(msg); msg.hidden = false; msg.className = 'notice';
-    const r = await call('auth.login', { idToken });
+    // Đăng nhập máy chủ cũ và Firebase CHẠY SONG SONG (chế độ Firestore) – tổng thời gian = bước lâu hơn, không cộng dồn
+    const t0 = performance.now(), fbP = fb.afterLogin({ googleIdToken: idToken });
+    let r;
+    try { r = await call('auth.login', { idToken }); } catch (e) { fbP.then(() => fb.logout()); throw e; }
+    fb.noteTiming('Đăng nhập máy chủ cũ', performance.now() - t0);
     setToken(r.token);
-    await fb.afterLogin({ googleIdToken: idToken });
-    await app.reloadBoot();
+    await fbP;
+    const t1 = performance.now(); await app.reloadBoot(); fb.noteTiming('Dữ liệu khởi động', performance.now() - t1);
     renderShell();
     toast('Xin chào ' + app.user.full_name, 'ok');
   } catch (e) { msg.className = 'notice red'; msg.textContent = e.message; }
@@ -201,10 +206,14 @@ async function doPasswordLogin(username, password, msg) {
   if (!username.trim() || !password) { msg.hidden = false; msg.className = 'notice red'; msg.textContent = 'Nhập tên đăng nhập và mật khẩu.'; return; }
   try {
     loading(msg); msg.hidden = false; msg.className = 'notice';
-    const r = await call('auth.passwordLogin', { username: username.trim(), password });
+    // Đăng nhập máy chủ cũ và Firebase CHẠY SONG SONG (chế độ Firestore) – tổng thời gian = bước lâu hơn, không cộng dồn
+    const t0 = performance.now(), fbP = fb.afterLogin({ username: username.trim(), password });
+    let r;
+    try { r = await call('auth.passwordLogin', { username: username.trim(), password }); } catch (e) { fbP.then(() => fb.logout()); throw e; }
+    fb.noteTiming('Đăng nhập máy chủ cũ', performance.now() - t0);
     setToken(r.token);
-    await fb.afterLogin({ username: username.trim(), password });
-    await app.reloadBoot();
+    await fbP;
+    const t1 = performance.now(); await app.reloadBoot(); fb.noteTiming('Dữ liệu khởi động', performance.now() - t1);
     renderShell();
     if (!app.user.must_change_pw) toast('Xin chào ' + app.user.full_name, 'ok');
   } catch (e) { msg.className = 'notice red'; msg.textContent = e.message; }
