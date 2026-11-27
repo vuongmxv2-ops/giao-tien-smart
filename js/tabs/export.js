@@ -272,7 +272,8 @@ export async function render(el, app, params) {
   async function rankingCsv() {
     try {
       const d = await app.call('rank.get', { period: 'week', week_id: fWeek.value, campus_id: fCampus.value, comp_group: fGroup.value });
-      const rows = [['Hạng', 'Lớp', 'Nhóm', 'Điểm TB', 'Tổng', 'Hạng tuần trước', 'Tăng/giảm', 'Lượt vi phạm']].concat(d.rows.map(r => [r.rank, r.class_name, r.comp_group || '', r.average, r.total, r.prev_rank, r.rank_change, r.violation_count]));
+      const byCampus = d.rank_group === 'campus_id';
+      const rows = [['Hạng', 'Lớp', byCampus ? 'Khu' : 'Nhóm', 'Điểm TB', 'Tổng', 'Hạng tuần trước', 'Tăng/giảm', 'Lượt vi phạm']].concat(d.rows.map(r => [r.rank, r.class_name, byCampus ? app.campusName(r.campus_id) : r.comp_group || '', r.average, r.total, r.prev_rank, r.rank_change, r.violation_count]));
       download(new Blob([csv(rows)], { type: 'text/csv;charset=utf-8' }), `XEP_HANG_${fWeek.value}.csv`);
     } catch (e) { toast(e.message, 'err'); }
   }
