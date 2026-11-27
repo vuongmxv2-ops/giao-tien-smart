@@ -72,7 +72,15 @@ export async function call(action, payload = {}, opts = {}) {
   }
 }
 
+/**
+ * Chế độ Firestore: người dùng vào ứng dụng ngay khi Firebase sẵn sàng, đăng nhập máy chủ cũ chạy ở nền.
+ * Lệnh gửi máy chủ cũ (trừ auth.*) tự CHỜ tới khi có mã phiên – không bị báo "hết phiên".
+ */
+let tokenWait = null;
+export function setTokenPending(p) { tokenWait = p; p.then(() => {}, () => {}).then(() => { if (tokenWait === p) tokenWait = null; }); }
+
 async function call1(action, payload, opts) {
+  if (tokenWait && !action.startsWith('auth.')) { try { await tokenWait; } catch { /* đăng nhập nền lỗi: lệnh dưới đây sẽ báo lỗi phiên */ } }
   const body = JSON.stringify({ action, token, payload });
   let text;
   if (isMock()) text = await mockTransport(body);
