@@ -11,7 +11,7 @@ import { call } from './api.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 /** Bản giao diện chế độ Firestore – đổi mỗi lần sửa fbmode/engine: danh sách thao tác đã tự tắt gắn với từng bản (lên bản mới = thử lại từ đầu). */
-const BUILD = '1.6.2';
+const BUILD = '1.6.3';
 const KEY = 'gts_fb', OFF_KEY = 'gts_fb_off_' + BUILD;
 export const SKIP = Symbol('skip');
 
@@ -26,6 +26,9 @@ const READS = new Set([...LOCAL, 'auth.me', 'evidence.get', 'evidence.getMany', 
 const st = { enabled: false, fs: null, auth: null, db: null, user: null, member: null, engine: null, ready: null,
   syncedAt: 0, pendingWriteAt: 0, stats: { local: 0, remote: 0, verified: 0, fallback: {} }, mismatches: [], off: readOff() };
 window.GTS_FB = st;
+/** Thời gian từng bước (ms) – hiện trong hộp thông tin của nhãn ⚡ để biết chậm ở đâu. */
+st.timing = {};
+export function noteTiming(label, ms) { st.timing[label] = Math.round(ms); }
 function readOff() { try { return new Set(JSON.parse(localStorage.getItem(OFF_KEY) || '[]')); } catch { return new Set(); } }
 function saveOff() { try { localStorage.setItem(OFF_KEY, JSON.stringify([...st.off])); } catch { /* bỏ qua */ } }
 
@@ -50,7 +53,9 @@ export function init() {
   st.enabled = isEnabled();
   if (!st.enabled) return Promise.resolve(false);
   st.ready = (async () => {
+    const t0 = performance.now();
     const m = await sdk();
+    noteTiming('Tải thư viện Firebase', performance.now() - t0);
     st.fs = m.fs;
     const app = m.app.initializeApp(FIREBASE_CONFIG);
     st.auth = m.auth.getAuth(app);
@@ -76,7 +81,9 @@ async function attach() {
   st.member = snap.data();
   if (st.member.status !== 'ACTIVE') { st.engine = null; return; }
   onSnapshot(doc(st.db, '_sync', 'status'), s => { const d = s.data(); if (d) st.syncedAt = Number(d.started_ms) || Date.parse(d.started || d.at) || 0; }, () => {});
+  const t0 = performance.now();
   await loadBackend();
+  noteTiming('Nạp bộ máy đọc', performance.now() - t0);
   const { createEngine } = await import('./engine/engine.js');
   const { createSource } = await import('./engine/source.js');
   const { createFsAdapter } = await import('./engine/fsadapter.js');
@@ -113,6 +120,7 @@ async function link(action, payload) {
 /** Gọi sau khi đăng nhập hệ thống cũ thành công. cred = {googleIdToken} | {username, password}. Không bao giờ ném lỗi. */
 export async function afterLogin(cred) {
   if (!st.enabled) return;
+  const t0 = performance.now();
   try {
     await st.ready;
     const A = st.authMod;
@@ -131,6 +139,7 @@ export async function afterLogin(cred) {
       }
     }
     st.user = st.auth.currentUser;
+    noteTiming('Đăng nhập Firebase', performance.now() - t0);
     await attach();
   } catch (e) { console.warn('[fb] đăng nhập Firebase không thành công – dùng máy chủ cũ:', e.code || e.message); st.engine = null; }
 }
@@ -191,7 +200,9 @@ function badge() {
     b.style.cssText = 'position:fixed;left:8px;bottom:78px;z-index:9999;background:#0b5;color:#fff;font:12px/1.2 Arial;padding:4px 8px;border-radius:10px;opacity:.85;cursor:pointer';
     b.title = 'Chế độ Firestore (thử nghiệm). Bấm để xem chi tiết.';
     b.onclick = () => alert('Chế độ Firestore (thử nghiệm) – bản ' + BUILD + '\n\nChạy tại chỗ: ' + st.stats.local + '\nĐối chiếu khớp: ' + st.stats.verified +
-      '\nPhải hỏi máy chủ cũ: ' + st.stats.remote + '\nLệch (đã tự tắt): ' + ([...st.off].join(', ') || 'không') + '\n\nTắt chế độ: mở lại ứng dụng với địa chỉ có ?fb=0');
+      '\nPhải hỏi máy chủ cũ: ' + st.stats.remote + '\nLệch (đã tự tắt): ' + ([...st.off].join(', ') || 'không') +
+      (Object.keys(st.timing).length ? '\n\nThời gian:\n' + Object.entries(st.timing).map(([k, v]) => '· ' + k + ': ' + (v / 1000).toFixed(1) + ' giây').join('\n') : '') +
+      '\n\nTắt chế độ: mở lại ứng dụng với địa chỉ có ?fb=0');
     document.body.append(b);
   }
   b.textContent = '⚡ ' + st.stats.local + ' · ✔ ' + st.stats.verified + (st.off.size ? ' · ⚠ ' + st.off.size : '');
