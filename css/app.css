@@ -209,6 +209,8 @@ table.tbl { border-collapse: collapse; width: 100%; background: #fff; font-size:
 .thumb .x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(15,23,42,.65); color: #fff; cursor: pointer; }
 
 .review-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; background: #fff; box-shadow: var(--shadow); }
+.review-card.busy { opacity: .55; pointer-events: none; }
+.review-card .busy-note { font-weight: 600; color: var(--muted); margin-top: 6px; }
 .review-card.dup { border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow-l), var(--shadow); }
 .review-card .meta { display: grid; grid-template-columns: 112px 1fr; gap: 3px 10px; font-size: 14px; margin: 10px 0; padding: 10px 12px; background: #f8fafd; border-radius: var(--radius-s); }
 .review-card .meta b { color: var(--muted); font-weight: 600; }
