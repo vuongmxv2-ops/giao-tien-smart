@@ -21,6 +21,36 @@ export async function render(el, app) {
   el.append(bar, body);
   [fStatus, fWeek, fCampus, fClass].forEach(x => x.addEventListener('change', load));
   let all = [], items = [], selected = new Set(), total = 0;
+  // Duyệt / bác bỏ / yêu cầu bổ sung chạy NỀN theo hàng đợi: thẻ mờ đi, người duyệt xử lý tiếp thẻ khác ngay;
+  // gửi lần lượt (máy chủ chỉ ghi một yêu cầu một lúc); xong thì bỏ thẻ khỏi danh sách, KHÔNG tải lại cả danh sách.
+  const busy = new Map(), cardEls = new Map();
+  let chain = Promise.resolve();
+  const enqueue = task => { const p = chain.then(task); chain = p.catch(() => {}); return p; };
+  function setBusy(id, text) {
+    if (text) busy.set(id, text); else busy.delete(id);
+    const c = cardEls.get(id); if (!c) return;
+    c.classList.toggle('busy', !!text);
+    c.querySelector('.busy-note')?.remove();
+    if (text) c.append(h('div', { class: 'busy-note' }, text));
+    updateBar();
+  }
+  function done(ids) {
+    const gone = new Set(ids);
+    all = all.filter(i => !gone.has(i.incident_id)); total = Math.max(0, total - gone.size);
+    ids.forEach(id => { busy.delete(id); selected.delete(id); cardEls.get(id)?.remove(); cardEls.delete(id); });
+    items = items.filter(i => !gone.has(i.incident_id));
+    updateCounts(); updateBar();
+    if (!items.length) body.replaceChildren(h('div', { class: 'empty card' }, kindFilter === 'CONG' ? 'Không có bản ghi tuyên dương nào.' : 'Không có bản ghi nào cần xử lý. 🎉'));
+  }
+  function updateCounts() {
+    const nCong = all.filter(isPraise).length, nTru = all.length - nCong;
+    kBtns.forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.k === kindFilter);
+      btn.textContent = { '': `Tất cả (${all.length})`, TRU: `⚠️ Vi phạm (${nTru})`, CONG: `🌟 Tuyên dương (${nCong})` }[btn.dataset.k];
+    });
+  }
+  const countEl = h('span', { class: 'muted' });
+  function updateBar() { countEl.textContent = `${items.length}/${total} bản ghi` + (busy.size ? ` · ⏳ đang gửi ${busy.size}` : ''); }
   const isPraise = i => { const t = app.typeById(i.type_id); if (t) return t.kind === 'CONG'; const p = i.approved_points !== '' ? i.approved_points : i.proposed_points; return Number(p) > 0; };
 
   async function load() {
@@ -33,14 +63,11 @@ export async function render(el, app) {
   }
 
   function draw() {
-    const nCong = all.filter(isPraise).length, nTru = all.length - nCong;
-    kBtns.forEach(btn => {
-      btn.classList.toggle('on', btn.dataset.k === kindFilter);
-      btn.textContent = { '': `Tất cả (${all.length})`, TRU: `⚠️ Vi phạm (${nTru})`, CONG: `🌟 Tuyên dương (${nCong})` }[btn.dataset.k];
-    });
+    updateCounts();
     items = kindFilter ? all.filter(i => isPraise(i) === (kindFilter === 'CONG')) : all;
     [...selected].forEach(id => { if (!items.some(i => i.incident_id === id)) selected.delete(id); });
-    bar.replaceChildren(h('span', { class: 'muted' }, `${items.length}/${total} bản ghi`));
+    cardEls.clear(); updateBar();
+    bar.replaceChildren(countEl, h('button', { class: 'btn sm', title: 'Tải lại danh sách', onclick: load }, '↻'));
     if (fStatus.value !== 'DA_DUYET' && fStatus.value !== 'BAC_BO') {
       bar.append(h('button', { class: 'btn sm', onclick: () => { items.filter(i => i.status === 'CHO_DUYET' && i.proposed_points !== '').forEach(i => selected.add(i.incident_id)); draw(); } }, 'Chọn tất cả có điểm dự kiến'),
         h('button', { class: 'btn sm green', onclick: approveSelected }, 'Duyệt các bản đã chọn'));
@@ -69,7 +96,7 @@ export async function render(el, app) {
       acts.append(h('button', { class: 'btn', onclick: () => merge(i) }, '⧉ GỘP TRÙNG'));
     }
     const praise = isPraise(i);
-    return h('div', { class: 'review-card' + (i.dup_flag ? ' dup' : '') + (praise ? ' praise' : '') },
+    const el = h('div', { class: 'review-card' + (i.dup_flag ? ' dup' : '') + (praise ? ' praise' : '') },
       h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, i.status === 'CHO_DUYET' ? cb : '',
         praise ? h('span', { class: 'badge', style: 'background:#ef6c00;color:#fff' }, '🌟 Tuyên dương') : h('span', { class: 'badge red' }, 'Vi phạm'),
         h('b', { style: 'font-size:16px' }, `${i.class_name} – ${i.type_name}`), badge(i.status),
@@ -90,6 +117,16 @@ export async function render(el, app) {
       i.status === 'CHO_DUYET' ? field('Điểm duyệt (âm = trừ, dương = cộng)', pts) : (i.approved_points !== '' ? h('div', {}, 'Điểm đã duyệt: ', h('b', { class: i.approved_points < 0 ? 'neg' : 'pos' }, signed(i.approved_points))) : ''),
       own ? h('div', { class: 'small muted' }, 'Bạn là người ghi nhận nên không thể tự duyệt bản ghi này.') : '',
       acts);
+    cardEls.set(i.incident_id, el);
+    if (busy.has(i.incident_id)) { el.classList.add('busy'); el.append(h('div', { class: 'busy-note' }, busy.get(i.incident_id))); }
+    return el;
+  }
+
+  /** Gửi một thao tác ở nền; thành công → bỏ thẻ; lỗi → thẻ hiện lại bình thường + báo lỗi. */
+  function runBg(ids, label, send, onOk) {
+    ids.forEach(id => setBusy(id, '⏳ ' + label + '…'));
+    return enqueue(send).then(r => { const okIds = onOk ? onOk(r) : ids; done(okIds); ids.filter(id => !okIds.includes(id)).forEach(id => setBusy(id, '')); return r; },
+      e => { ids.forEach(id => setBusy(id, '')); toast(e.message, 'err', 7000); });
   }
 
   async function loadThumb(id, slot) {
@@ -103,24 +140,35 @@ export async function render(el, app) {
     let reason = '';
     if (pointsValue === '') return toast('Nhập điểm trước khi duyệt.', 'err');
     if (changed) { reason = await askReason('Điểm duyệt khác điểm dự kiến', { label: 'Lý do' }); if (!reason) return; }
-    try { await app.call('review.approve', { incident_id: i.incident_id, approved_points: Number(pointsValue), reason }); toast('Đã duyệt – điểm đã được ghi nhận', 'ok'); load(); }
-    catch (e) { toast(e.message, 'err'); }
+    runBg([i.incident_id], 'Đang duyệt', () => app.call('review.approve', { incident_id: i.incident_id, approved_points: Number(pointsValue), reason }))
+      .then(r => { if (r) toast(`Đã duyệt: ${i.class_name} – ${i.type_name}`, 'ok', 2000); });
   }
 
   async function approveSelected() {
     if (!selected.size) return toast('Chưa chọn bản ghi nào.', 'warn');
-    try {
-      const r = await app.call('review.approveMany', { ids: [...selected] });
-      const ok = r.results.filter(x => x.ok).length, bad = r.results.filter(x => !x.ok);
-      toast(`Đã duyệt ${ok} bản ghi` + (bad.length ? `, ${bad.length} lỗi: ${bad[0].message}` : ''), bad.length ? 'warn' : 'ok', 7000);
-      load();
-    } catch (e) { toast(e.message, 'err'); }
+    const ids = [...selected].filter(id => !busy.has(id));
+    if (!ids.length) return;
+    runBg(ids, 'Đang duyệt', () => app.call('review.approveMany', { ids }), r => r.results.filter(x => x.ok).map(x => x.id))
+      .then(r => {
+        if (!r) return;
+        const ok = r.results.filter(x => x.ok).length, bad = r.results.filter(x => !x.ok);
+        toast(`Đã duyệt ${ok} bản ghi` + (bad.length ? `, ${bad.length} lỗi: ${bad[0].message}` : ''), bad.length ? 'warn' : 'ok', 7000);
+      });
   }
 
   async function act(action, i, title, label) {
     const reason = await askReason(title, { label, kind: action === 'review.reject' ? 'red' : 'primary' });
     if (!reason) return;
-    try { await app.call(action, { incident_id: i.incident_id, reason }); toast('Đã cập nhật', 'ok'); load(); } catch (e) { toast(e.message, 'err'); }
+    // Bác bỏ bản đã duyệt khi đang xem "Đã duyệt": vẫn bỏ khỏi danh sách vì trạng thái đã đổi.
+    // Yêu cầu bổ sung khi đang xem "Chờ duyệt + cần bổ sung": bản ghi vẫn thuộc danh sách → giữ thẻ, đổi trạng thái tại chỗ.
+    const keep = action === 'review.requestInfo' && fStatus.value === 'pending';
+    runBg([i.incident_id], action === 'review.reject' ? 'Đang bác bỏ' : 'Đang gửi yêu cầu bổ sung', () => app.call(action, { incident_id: i.incident_id, reason }),
+      keep ? () => { i.status = 'YEU_CAU_BO_SUNG'; i.review_reason = reason; i.reviewed_by_name = ''; return []; } : null)
+      .then(r => {
+        if (!r) return;
+        if (keep) { selected.delete(i.incident_id); cardEls.get(i.incident_id)?.replaceWith(card(i)); }
+        toast('Đã cập nhật: ' + i.class_name + ' – ' + i.type_name, 'ok', 2000);
+      });
   }
 
   function edit(i) {
